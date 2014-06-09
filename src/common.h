@@ -26,13 +26,13 @@
 
 inline void* malloc_or_die(size_t size) {
     void* ptr = malloc(size);
-    if (!ptr) ERRPX("Failed to malloc %d bytes", size);
+    if (!ptr) ERRPX("Failed to malloc %zu bytes", size);
     return ptr;
 }
 
 inline void* calloc_or_die(size_t nmemb, size_t size) {
     void* ptr = calloc(nmemb, size);
-    if (!ptr) ERRPX("Failed to calloc %d bytes", nmemb * size);
+    if (!ptr) ERRPX("Failed to calloc %zu bytes", nmemb * size);
     return ptr;
 }
 
