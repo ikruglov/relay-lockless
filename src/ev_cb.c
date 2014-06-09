@@ -274,32 +274,70 @@ void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents) {
         // normal send logic
         // if we fail send an item due to any reason
         // skip it and rely on background process to dump it do disk
-        list_item_t* item = icw->item;
 
-        // data of current item has been sent, advance to next one
-        if (icw->offset >= icw->size) {
-            if (!item->next) {
-                // nothing to pick up from queue, temporary stop watcher
-                // and start ev_async wakeup_clients watcher
-                ev_io_stop(loop, w);
-                ev_async_start(loop, ctx->wakeup_clients);
-                return;
-            }
+        size_t iovlen = 8;
+        struct iovec iov[iovlen];
 
-            icw->item = item->next;
-            item = icw->item;
+        struct msghdr msg;
+        memset(&msg, 0, sizeof(msg));
+        msg.msg_iov = (struct iovec*) &iov;
 
-            icw->size = item->size;
-            icw->offset = 0;
-
-            // ignore empty items
-            if (icw->size == 0) return;
+        list_item_t* base_item = icw->item;
+        if (icw->offset < icw->size) {
+            // still need to send data from current item
+            iov[0].iov_base = icw->item->data + icw->offset;
+            iov[0].iov_len = icw->size - icw->offset;
+            msg.msg_iovlen = 1;
+        } else {
+            base_item = base_item->next;
         }
 
-        ssize_t wlen = send(w->fd, item->data + icw->offset, icw->size - icw->offset, 0);
+        // check up to iovlen items in queue
+        list_item_t* iov_item = base_item;
+        for (int i = msg.msg_iovlen; i < iovlen; ++i) {
+            if (!iov_item) break;
+            msg.msg_iovlen++;
+
+            iov[i].iov_base = iov_item->data;
+            iov[i].iov_len = iov_item->size;
+            iov_item = iov_item->next;
+        }
+
+        if (msg.msg_iovlen == 0) {
+            // nothing to send at this iteration
+            // temporary stop watcher and start ev_async wakeup_clients watcher
+            ev_io_stop(loop, w);
+            ev_async_start(loop, ctx->wakeup_clients);
+            return;
+        }
+
+        //for (int i = 0; i < msg.msg_iovlen; ++i) {
+        //    _D("iov[%d] len: %zu data: %s", i, iov[i].iov_len, (char*) iov[i].iov_base);
+        //}
+
+        static time_t last_epoch = 0;
+        if (last_epoch != time(0)) {
+            last_epoch = time(0);
+            _D("msg.msg_iovlen: %zu", msg.msg_iovlen);
+        }
+
+        ssize_t wlen = sendmsg(w->fd, (const struct msghdr*) &msg, 0);
 
         if (wlen > 0) {
-            icw->offset += wlen; // data was sent, normal workflow
+            for (int i = 0; i < msg.msg_iovlen; ++i) {
+                assert(base_item);
+                //_D("base_item: %lld", base_item->id);
+
+                if (wlen <= iov[i].iov_len) {
+                    icw->offset = wlen;
+                    icw->size = iov[i].iov_len;
+                    icw->item = base_item;
+                    break;
+                }
+
+                wlen -= iov[i].iov_len;
+                base_item = base_item->next;
+            }
         } else if (wlen != 0 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
             // error condition, disconnect from socket
             _EN("send() returned error", icw);
