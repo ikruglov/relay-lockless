@@ -122,6 +122,8 @@ void tcp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
             list_item_t* item = list_enqueue_new(ctx->list, isw->size);
             memcpy(item->data, isw->buf, isw->size); // buf already has size in it
 
+            _D("ev_async_send");
+            ev_async_send(loop, ctx->wakeup_clients);
             wakeup_clients(loop); //TODO do something smarter
 
             isw->offset = 0;
@@ -303,6 +305,10 @@ void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents) {
     }
 
     //TODO cleanup client
+}
+
+void wakeup_clients_cb(struct ev_loop* loop, ev_async* w, int revents) {
+    _D("wakeup_clients_cb");
 }
 
 void wakeup_clients(struct ev_loop* loop) {
