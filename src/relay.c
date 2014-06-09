@@ -45,12 +45,16 @@ int main(int argc, char** argv) {
         socket_t* client_sock = socketize(argv[i]);
         setup_socket(client_sock, 0);
         io_client_watcher_t* tcp_client = new_io_client_watcher(loop, tcp_client_cb, client_sock);
-        try_to_connect(tcp_client);
+        try_connect(tcp_client);
     }
 
     ev_timer reconnect_timer;
     ev_timer_init(&reconnect_timer, reconnect_clients_cb, 0, 1);
     ev_timer_start(loop, &reconnect_timer);
+
+    ev_timer cleanup_list;
+    ev_timer_init(&cleanup_list, cleanup_list_cb, 1, 1);
+    ev_timer_start(loop, &cleanup_list);
 
     ev_run(loop, 0);
 

@@ -5,7 +5,7 @@
 #include "common.h"
 
 #define _DN(fmt, obj, arg...) _D(fmt " [%s]", ##arg, obj->sock->to_string)
-#define _EN(fmt, obj, arg...) _D(fmt " [%s]: %s", ##arg, obj->sock->to_string, strerror(errno))
+#define _EN(fmt, obj, arg...) _D(fmt " [%s]: %s", ##arg, obj->sock->to_string, errno ? strerror(errno) : "undefined error")
 
 context_t* init_context() {
     context_t* ctx = calloc_or_die(1, sizeof(context_t));
@@ -223,17 +223,20 @@ io_client_watcher_t* new_io_client_watcher(struct ev_loop* loop, io_watcher_cb c
     return icw;
 }
 
-void try_to_connect(io_client_watcher_t* icw) {
+int try_connect(io_client_watcher_t* icw) {
     assert(icw);
 
     socket_t* sock = icw->sock;
     int ret = connect(sock->socket, (struct sockaddr *) &sock->in, sizeof(sock->in));
     if (ret == 0) {
         icw->connected = 1;
-    } else if (ret == -1 && errno != EINPROGRESS) {
+    } else if (ret == -1 && errno == EINPROGRESS) {
+        ret = 0;
+    } else {
         _EN("connect() failed", icw);
-        //TODO stop watcher
     }
+
+    return ret;
 }
 
 void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents) {
@@ -308,20 +311,39 @@ void wakeup_clients(struct ev_loop* loop) {
 }
 
 void reconnect_clients_cb(struct ev_loop* loop, ev_timer* w, int revents) {
-//    context_t* ctx = (context_t*) ev_userdata(loop);
-//    for (int i = 0; i < ctx->clients_cnt; ++i) {
-//        io_client_watcher_t* icw = &ctx->clients[i];
-//        if (!ev_is_active(&icw->io) && !icw->connected) {
-//            _D("try reconnect to %s", icw->sock->to_string);
-//
-//            setup_socket(icw->sock); //TODO check exit code
-//            try_to_connect(icw);
-//
-//            ev_io_set(&icw->io, icw->sock->socket, EV_WRITE);
-//            ev_io_start(loop, &icw->io);
-//
-//            icw->offset = 0;
-//            icw->size = 0;
-//        }
-//    }
+    context_t* ctx = (context_t*) ev_userdata(loop);
+    for (int i = 0; i < MAX_CLIENTS; ++i) {
+        io_client_watcher_t* icw = ctx->clients[i];
+        if (icw && !ev_is_active(&icw->io) && !icw->connected) {
+            _DN("try reconnect", icw);
+
+            if (setup_socket(icw->sock, 0) || try_connect(icw))
+                continue;
+
+            ev_io_set(&icw->io, icw->sock->socket, EV_WRITE);
+            ev_io_start(loop, &icw->io);
+
+            icw->offset = 0;
+            icw->size = 0;
+        }
+    }
+}
+
+void cleanup_list_cb(struct ev_loop* loop, ev_timer* w, int revents) {
+    context_t* ctx = (context_t*) ev_userdata(loop);
+    list_t* list = ctx->list;
+
+    size_t deleted = 0;
+    while (list->head->next) {
+        for (int i = 0; i < MAX_CLIENTS; ++i) {
+            io_client_watcher_t* icw = ctx->clients[i];
+            if (icw && icw->item == list->head)
+                return;
+        }
+
+        ++deleted;
+        list_dequeue(list);
+    }
+
+    _D("cleanup_list_cb(): %d deleted, list size: %d", deleted, list_size(list));
 }

@@ -48,8 +48,8 @@ void tcp_accept_cb(struct ev_loop* loop, ev_io* w, int revents);
 void tcp_server_cb(struct ev_loop* loop, ev_io* w, int revents);
 void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents);
 
-void wakeup_clients(struct ev_loop* loop);
-void try_to_connect(io_client_watcher_t* icw);
+void cleanup_list_cb(struct ev_loop* loop, ev_timer* w, int revents);
 void reconnect_clients_cb(struct ev_loop* loop, ev_timer* w, int revents);
 
-//void cleanup_list_cb(struct ev_loop *loop, ev_idle *w, int revents);
+void wakeup_clients(struct ev_loop* loop);
+int try_connect(io_client_watcher_t* icw);
