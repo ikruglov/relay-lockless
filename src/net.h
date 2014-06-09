@@ -19,9 +19,7 @@ struct _socket {
 typedef struct _socket socket_t;
 
 socket_t* socketize(const char* arg);
-void setup_socket(socket_t* sock);
-
-void connect_socket(socket_t* sock);
-void bind_socket(socket_t* sock);
+socket_t* socketize_sockaddr(const struct sockaddr_in* sockaddr);
+int setup_socket(socket_t* sock, int server_mode); //TODO replace to flags
 
 #endif

@@ -30,13 +30,20 @@ int main(int argc, char** argv) {
     // init udp socket
     //socket_t* listened_sock = socketize("udp@localhost:2008");
     socket_t* listened_sock = socketize(argv[1]);
-    bind_socket(listened_sock);
-    new_io_server_watcher(loop, udp_server_cb, listened_sock);
+    if (setup_socket(listened_sock, 1)) {
+        ERRX("Failed to setup socket");
+    }
+
+    if (listened_sock->proto == IPPROTO_TCP) {
+        new_io_server_watcher(loop, tcp_accept_cb, listened_sock);
+    } else {
+        new_io_server_watcher(loop, udp_server_cb, listened_sock);
+    }
 
     // init clients
     for (int i = 2; i < argc; ++i) {
         socket_t* client_sock = socketize(argv[i]);
-        setup_socket(client_sock);
+        setup_socket(client_sock, 0);
         io_client_watcher_t* tcp_client = new_io_client_watcher(loop, tcp_client_cb, client_sock);
         try_to_connect(tcp_client);
     }
@@ -45,10 +52,8 @@ int main(int argc, char** argv) {
     ev_timer_init(&reconnect_timer, reconnect_clients_cb, 0, 1);
     ev_timer_start(loop, &reconnect_timer);
 
-    ev_timer wakeup_clients_timer;
-    ev_timer_init(&wakeup_clients_timer, wakeup_clients, 0, 0.1);
-    ev_timer_start(loop, &wakeup_clients_timer);
-
     ev_run(loop, 0);
+
+    free_context(ctx);
     return 1;
 }

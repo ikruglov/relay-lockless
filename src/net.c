@@ -14,10 +14,9 @@ static int set_nonblocking(int sock) {
 
 socket_t* socketize(const char* a) {
     assert(a);
-    char* arg = strdup(a);
 
-    socket_t* sock = calloc(1, sizeof(socket_t));
-    if (!sock) ERRPX("Failed to calloc");
+    char* arg = strdup(a);
+    socket_t* sock = calloc_or_die(1, sizeof(socket_t));
 
     if (strncmp(arg, "tcp@", 4) == 0) {
         sock->type = SOCK_STREAM;
@@ -55,61 +54,63 @@ socket_t* socketize(const char* a) {
     return sock;
 }
 
-void setup_socket(socket_t* sock) {
+socket_t* socketize_sockaddr(const struct sockaddr_in* sockaddr) {
+    assert(sockaddr);
+
+    socket_t* sock = calloc_or_die(1, sizeof(socket_t));
+
+    sock->socket = -1;
+    sock->proto = IPPROTO_TCP;
+    sock->type = SOCK_STREAM;
+    sock->port = ntohs(sockaddr->sin_port);
+
+    memcpy(&sock->in, sockaddr, sizeof(sockaddr));
+
+    snprintf(sock->to_string, PATH_MAX,
+            "%s@%s:%d", (sock->proto == IPPROTO_TCP ? "tcp" : "udp"),
+            inet_ntoa(sock->in.sin_addr), ntohs(sock->in.sin_port));
+
+    _D("socketize: %s", sock->to_string);
+    
+    return sock;
+}
+
+int setup_socket(socket_t* sock, int server_mode) {
     assert(sock);
 
     int fd = socket(sock->in.sin_family, sock->type, sock->proto);
-    if (fd < 0) ERRPX("Failed to create socket %s", sock->to_string);
+    if (fd < 0) {
+        _E("Failed to create socket [%s]", sock->to_string);
+        return -1;
+    }
+
+    if (server_mode) {
+        int yes = 1;
+        if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes))) {
+            _E("Failed to setsockopt SO_REUSEADDR [%s]", sock->to_string);
+            close(fd); 
+            return -1;
+        }
+
+        if (bind(fd, (struct sockaddr *) &sock->in, sizeof(sock->in))) {
+            _E("Failed to bind socket [%s]", sock->to_string);
+            close(fd); 
+            return -1;
+        }
+
+        if (sock->proto == IPPROTO_TCP && listen(fd, SOMAXCONN)) {
+            _E("Failed to listen socket [%s]", sock->to_string);
+            close(fd);
+            return -1;
+        }
+    }
 
     if (set_nonblocking(fd)) {
+        _E("Failed to set non blocking mode [%s]", sock->to_string);
         close(fd);
-        ERRPX("Failed to set non blocking mode for socket [fd:%d] %s", fd, sock->to_string);
+        return -1;
     }
 
     sock->socket = fd;
-}
-
-void connect_socket(socket_t* sock) {
-    assert(sock);
-
-    int fd = socket(sock->in.sin_family, sock->type, sock->proto);
-    if (fd < 0) ERRPX("Failed to create socket %s", sock->to_string);
-
-    if (   sock->proto == IPPROTO_TCP
-        && connect(fd, (struct sockaddr *) &sock->in, sizeof(sock->in))
-    ) {
-        close(fd);
-        ERRPX("Failed to connect to socket %s", sock->to_string);
-    }
-
-    if (fcntl(fd, F_SETFL, O_NONBLOCK)) {
-        close(fd);
-        ERRPX("Failed to set non-blocking mode for socket %s", sock->to_string);
-    }
-
-    sock->socket = fd;
-}
-
-void bind_socket(socket_t* sock) {
-    assert(sock);
-
-    int fd = socket(sock->in.sin_family, sock->type, sock->proto);
-    if (fd < 0) ERRPX("Failed to create socket %s", sock->to_string);
-
-    if (bind(fd, (struct sockaddr *) &sock->in, sizeof(sock->in))) {
-        close(fd); 
-        ERRPX("Failed to bind socket %s", sock->to_string);
-    }
-
-    if (sock->proto == IPPROTO_TCP && listen(fd, SOMAXCONN)) {
-        close(fd);
-        ERRPX("Failed to listen on socket %s", sock->to_string);
-    }
-
-    if (fcntl(fd, F_SETFL, O_NONBLOCK)) {
-        close(fd);
-        ERRPX("Failed to set non-blocking mode for socket %s", sock->to_string);
-    }
-
-    sock->socket = fd;
+    return 0;
 }

@@ -4,21 +4,15 @@
 #include "list.h"
 #include "common.h"
 
-void* _malloc_or_die(size_t size) {
-    void* ptr = malloc(size);
-    if (!ptr) ERRPX("Failed to allocate %zu", size);
-    return ptr;
-}
-
 list_t* list_init() {
-    list_t* list = (list_t*) _malloc_or_die(sizeof(list_t));
+    list_t* list = (list_t*) malloc_or_die(sizeof(list_t));
     list->head = list_new(0);
     list->tail = list->head;
     return list;
 }
 
 list_item_t* list_new(uint32_t size) {
-    list_item_t* item = (list_item_t*) _malloc_or_die(sizeof(list_item_t) + size);
+    list_item_t* item = (list_item_t*) malloc_or_die(sizeof(list_item_t) + size);
     item->size = size;
     item->next = NULL;
     return item;
