@@ -358,17 +358,24 @@ void cleanup_list_cb(struct ev_loop* loop, ev_timer* w, int revents) {
     context_t* ctx = (context_t*) ev_userdata(loop);
     list_t* list = ctx->list;
 
-    size_t deleted = 0;
+    uint64_t min_id = (uint64_t) -1;
+    for (int i = 0; i < MAX_CLIENTS; ++i) {
+        io_client_watcher_t* icw = ctx->clients[i];
+        if (!icw) continue;
 
-    while (list->head->next) {
-        for (int i = 0; i < MAX_CLIENTS; ++i) {
-            io_client_watcher_t* icw = ctx->clients[i];
-            if (icw && icw->item == list->head)
-                break;
+        //sanity check
+        assert(icw->item);
+        assert(icw->item->id != (uint64_t) -1);
+
+        if (icw->item->id < min_id) {
+            min_id = icw->item->id;
         }
+    }
 
-        ++deleted;
+    size_t deleted = 0;
+    while (list->head->id < min_id && list->head->next) {
         list_dequeue(list);
+        ++deleted;
     }
 
     _D("cleanup_list_cb(): %zu deleted, list size: %zu", deleted, list_size(list));

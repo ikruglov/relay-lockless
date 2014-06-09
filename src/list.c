@@ -8,6 +8,8 @@ list_t* list_init() {
     list_t* list = (list_t*) malloc_or_die(sizeof(list_t));
     list->head = list_new(0);
     list->tail = list->head;
+    list->head->id = 0;
+    list->size = 0;
     return list;
 }
 
@@ -15,6 +17,7 @@ list_item_t* list_new(uint32_t size) {
     list_item_t* item = (list_item_t*) malloc_or_die(sizeof(list_item_t) + size);
     item->size = size;
     item->next = NULL;
+    item->id = (uint64_t) -1;
     return item;
 }
 
@@ -24,8 +27,10 @@ list_item_t* list_enqueue(list_t* list, list_item_t* item) {
     assert(list->tail);
     assert(list->tail->next == NULL);
 
+    item->id = list->tail->id + 1;
     list->tail->next = item;
     list->tail = item;
+    list->size += 1;
     return list->tail;
 }
 
@@ -41,13 +46,16 @@ void list_dequeue(list_t* list) {
     if (head->next == NULL) return;
 
     list->head = head->next;
+    list->size -= 1;
     free(head);
 }
 
 size_t list_size(list_t* list) {
+    assert(list);
     assert(list->head);
     assert(list->tail);
 
+#ifdef DEBUG
     size_t size = 0;
     list_item_t* head = list->head;
 
@@ -56,6 +64,9 @@ size_t list_size(list_t* list) {
         ++size;
     }
 
+    assert(size == list->size);
     assert(head == list->tail);
-    return size;
+#endif
+
+    return list->size;
 }

@@ -6,11 +6,13 @@
 
 struct _list_item {
     struct _list_item* next;
+    uint64_t id;   // id within a list
     uint32_t size; // size of payload
     char data[];   // payload
 };
 
 struct _list {
+    size_t size;
     struct _list_item* head;
     struct _list_item* tail;
 };
