@@ -24,7 +24,7 @@ list_t* list_init();
 list_item_t* list_new(uint32_t size);
 list_item_t* list_enqueue(list_t* list, list_item_t* item);
 list_item_t* list_enqueue_new(list_t* list, uint32_t size);
-void list_dequeue(list_t* list);
+int list_dequeue(list_t* list);
 size_t list_size(list_t* list); // O(n)
 
 #endif

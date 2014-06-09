@@ -373,8 +373,7 @@ void cleanup_list_cb(struct ev_loop* loop, ev_timer* w, int revents) {
     }
 
     size_t deleted = 0;
-    while (list->head->id < min_id && list->head->next) {
-        list_dequeue(list);
+    while (list->head->id < min_id && list_dequeue(list)) {
         ++deleted;
     }
 

@@ -59,5 +59,5 @@ int main(int argc, char** argv) {
     ev_run(loop, 0);
 
     free_context(ctx);
-    return 1;
+    return EXIT_SUCCESS;
 }

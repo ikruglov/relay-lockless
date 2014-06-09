@@ -38,16 +38,18 @@ list_item_t* list_enqueue_new(list_t* list, uint32_t size) {
     return list_enqueue(list, list_new(size));
 }
 
-void list_dequeue(list_t* list) {
+int list_dequeue(list_t* list) {
     assert(list->head);
     assert(list->tail);
 
     list_item_t* head = list->head;
-    if (head->next == NULL) return;
+    if (head->next == NULL)
+        return 0;
 
     list->head = head->next;
     list->size -= 1;
     free(head);
+    return 1;
 }
 
 size_t list_size(list_t* list) {
