@@ -11,6 +11,11 @@ static void sig_handler(int signum) {
 }
 
 int main(int argc, char** argv) {
+    if (argc < 3) {
+        printf("Usage: ./bin/relay udp@localhost:10000 tcp@localhost:10001 ...\n");
+        return EXIT_FAILURE;
+    }
+
     // setup signal hendlers
     signal(SIGPIPE, sig_handler);
     signal(SIGCHLD, sig_handler);
@@ -23,15 +28,18 @@ int main(int argc, char** argv) {
     ev_set_userdata(loop, ctx);
 
     // init udp socket
-    socket_t* listened_sock = socketize("udp@localhost:2008");
+    //socket_t* listened_sock = socketize("udp@localhost:2008");
+    socket_t* listened_sock = socketize(argv[1]);
     bind_socket(listened_sock);
     new_io_server_watcher(loop, udp_server_cb, listened_sock);
 
-    // init client
-    socket_t* client_sock = socketize("tcp@localhost:2009");
-    setup_socket(client_sock);
-    io_client_watcher_t* tcp_client = new_io_client_watcher(loop, tcp_client_cb, client_sock);
-    //try_to_connect(tcp_client);
+    // init clients
+    for (int i = 2; i < argc; ++i) {
+        socket_t* client_sock = socketize(argv[i]);
+        setup_socket(client_sock);
+        io_client_watcher_t* tcp_client = new_io_client_watcher(loop, tcp_client_cb, client_sock);
+        try_to_connect(tcp_client);
+    }
 
     ev_timer reconnect_timer;
     ev_timer_init(&reconnect_timer, reconnect_clients_cb, 0, 1);
