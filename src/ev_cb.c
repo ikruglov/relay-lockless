@@ -36,8 +36,10 @@ void udp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
 
     if (rlen > 0) {
         // normal workflow
-        list_item_t* item = list_enqueue_new(ctx->list, rlen);
-        memcpy(item->data, isw->buf, rlen);
+        uint32_t size = rlen; // 4 bytes;
+        list_item_t* item = list_enqueue_new(ctx->list, rlen + sizeof(size));
+        memcpy(item->data, &size, sizeof(rlen));
+        memcpy(item->data + sizeof(size), isw->buf, rlen);
 
         //_D("UDP packet received: %d", rlen);
     } else if (rlen == 0 || (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)) {
