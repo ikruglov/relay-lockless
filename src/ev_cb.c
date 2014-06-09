@@ -9,7 +9,13 @@
 
 context_t* init_context() {
     context_t* ctx = calloc_or_die(1, sizeof(context_t));
+
     ctx->list = list_init();
+
+    ctx->wakeup_clients = malloc_or_die(sizeof(ev_async));
+    ev_async_init(ctx->wakeup_clients, wakeup_clients_cb);
+    ev_set_priority(ctx->wakeup_clients, 1);
+
     return ctx;
 }
 
@@ -25,6 +31,9 @@ void free_context(context_t* ctx) {
         io_server_watcher_t* isw = ctx->servers[i];
         if (isw) free(isw);
     }
+
+    if (ctx->wakeup_clients)
+        free(ctx->wakeup_clients);
 
     free(ctx);
 }
@@ -122,9 +131,8 @@ void tcp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
             list_item_t* item = list_enqueue_new(ctx->list, isw->size);
             memcpy(item->data, isw->buf, isw->size); // buf already has size in it
 
-            _D("ev_async_send");
+            // wakeup stopped clients
             ev_async_send(loop, ctx->wakeup_clients);
-            wakeup_clients(loop); //TODO do something smarter
 
             isw->offset = 0;
             isw->size = 0;
@@ -169,7 +177,8 @@ void udp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
         memcpy(item->data, &isw->size, sizeof(isw->size));
         memcpy(item->data + sizeof(isw->size), isw->buf, rlen);
 
-        wakeup_clients(loop); //TODO do something smarter
+        // wakeup stopped clients
+        ev_async_send(loop, ctx->wakeup_clients);
 
         isw->offset = 0;
         isw->size = 0;
@@ -244,6 +253,7 @@ int try_connect(io_client_watcher_t* icw) {
 }
 
 void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents) {
+    context_t* ctx = (context_t*) ev_userdata(loop);
     io_client_watcher_t* icw = (io_client_watcher_t*) w;
 
     if (!icw->connected) {
@@ -269,9 +279,10 @@ void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents) {
         // data of current item has been sent, advance to next one
         if (icw->offset >= icw->size) {
             if (!item->next) {
-                // nothing to pick up from queue
-                // temporary stop watcher
+                // nothing to pick up from queue, temporary stop watcher
+                // and start ev_async wakeup_clients watcher
                 ev_io_stop(loop, w);
+                ev_async_start(loop, ctx->wakeup_clients);
                 return;
             }
 
@@ -307,12 +318,10 @@ void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents) {
     //TODO cleanup client
 }
 
+// idea of having another async cb for waking up clients
+// rely on fact that several async events (from different server watchers)
+// could be aggregated in single one leading to less of work to do
 void wakeup_clients_cb(struct ev_loop* loop, ev_async* w, int revents) {
-    _D("wakeup_clients_cb");
-}
-
-void wakeup_clients(struct ev_loop* loop) {
-    assert(loop);
     context_t* ctx = (context_t*) ev_userdata(loop);
     for (size_t i = 0; i < MAX_CLIENTS; ++i) {
         io_client_watcher_t* icw = ctx->clients[i];
@@ -320,6 +329,10 @@ void wakeup_clients(struct ev_loop* loop) {
             ev_io_start(loop, &icw->io);
         }
     }
+
+    // all clients started
+    // when any clients stops, it starts this one
+    ev_async_stop(loop, w);
 }
 
 void reconnect_clients_cb(struct ev_loop* loop, ev_timer* w, int revents) {

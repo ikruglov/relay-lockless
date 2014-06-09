@@ -28,9 +28,9 @@ struct _io_server_watcher {
 
 struct _context {
     list_t* list;
-    ev_async* wakeup_clients;
-    struct _io_server_watcher* servers[MAX_SERVERS];
-    struct _io_client_watcher* clients[MAX_CLIENTS];
+    ev_async* wakeup_clients;                        // priority 1
+    struct _io_server_watcher* servers[MAX_SERVERS]; // priority 2
+    struct _io_client_watcher* clients[MAX_CLIENTS]; // priority 0
 };
 
 typedef struct _context context_t;
@@ -53,5 +53,4 @@ void cleanup_list_cb(struct ev_loop* loop, ev_timer* w, int revents);
 void wakeup_clients_cb(struct ev_loop* loop, ev_async* w, int revents);
 void reconnect_clients_cb(struct ev_loop* loop, ev_timer* w, int revents);
 
-void wakeup_clients(struct ev_loop* loop);
 int try_connect(io_client_watcher_t* icw);

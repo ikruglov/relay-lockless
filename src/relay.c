@@ -56,11 +56,6 @@ int main(int argc, char** argv) {
     ev_timer_init(&cleanup_list, cleanup_list_cb, 1, 1);
     ev_timer_start(loop, &cleanup_list);
 
-    ev_async aaa;
-    ev_async_init(&aaa, wakeup_clients_cb);
-    ev_async_start(loop, &aaa);
-    ctx->wakeup_clients = &aaa;
-
     ev_run(loop, 0);
 
     free_context(ctx);
