@@ -315,12 +315,6 @@ void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents) {
         //    _D("iov[%d] len: %zu data: %s", i, iov[i].iov_len, (char*) iov[i].iov_base);
         //}
 
-        static time_t last_epoch = 0;
-        if (last_epoch != time(0)) {
-            last_epoch = time(0);
-            _D("msg.msg_iovlen: %zu", msg.msg_iovlen);
-        }
-
         ssize_t wlen = sendmsg(w->fd, (const struct msghdr*) &msg, 0);
 
         if (wlen > 0) {
