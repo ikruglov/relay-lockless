@@ -9,7 +9,7 @@ mkdir:
 
 relay: mkdir
 	$(CC) -c -O3 -g -DEV_STANDALONE=1 libev/ev.c -o ev.o
-	$(CC) $(CFLAGS) $(INCLUDE) ev.o src/list.c src/net.c src/ev_cb.c src/relay.c -o bin/relay
+	$(CC) $(CFLAGS) $(INCLUDE) ev.o src/common.c src/list.c src/net.c src/ev_cb.c src/relay.c -o bin/relay
 
 test: test_queue
 	$(CC) test/becho.c -o bin/becho

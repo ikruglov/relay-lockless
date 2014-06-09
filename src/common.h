@@ -24,16 +24,7 @@
 #define _E(fmt,arg...) \
         printf(FORMAT(fmt ": %s", ##arg, errno ? strerror(errno) : "undefined error"))
 
-inline void* malloc_or_die(size_t size) {
-    void* ptr = malloc(size);
-    if (!ptr) ERRPX("Failed to malloc %zu bytes", size);
-    return ptr;
-}
-
-inline void* calloc_or_die(size_t nmemb, size_t size) {
-    void* ptr = calloc(nmemb, size);
-    if (!ptr) ERRPX("Failed to calloc %zu bytes", nmemb * size);
-    return ptr;
-}
+void* malloc_or_die(size_t size);
+void* calloc_or_die(size_t nmemb, size_t size);
 
 #endif
