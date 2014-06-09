@@ -52,6 +52,8 @@ int main(int argc, char** argv) {
     ev_timer_init(&reconnect_timer, reconnect_clients_cb, 0, 1);
     ev_timer_start(loop, &reconnect_timer);
 
+    // TODO create ev_idle watcher to
+    // to cleanup list when nothing to do
     ev_timer cleanup_list;
     ev_timer_init(&cleanup_list, cleanup_list_cb, 1, 1);
     ev_timer_start(loop, &cleanup_list);
