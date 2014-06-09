@@ -56,6 +56,8 @@ io_server_watcher_t* new_io_server_watcher(struct ev_loop* loop, io_watcher_cb c
     isw->offset = 0;
     isw->size = 0;
 
+    // server events should be handled first
+    ev_set_priority(&isw->io, 2);
     ev_io_start(loop, &isw->io);
     return isw;
 }
@@ -282,6 +284,7 @@ void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents) {
         }
 
         ssize_t wlen = send(w->fd, item->data + icw->offset, icw->size - icw->offset, 0);
+
         if (wlen > 0) {
             icw->offset += wlen; // data was sent, normal workflow
         } else if (wlen != 0 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
@@ -290,6 +293,9 @@ void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents) {
             ev_io_stop(loop, w);
             icw->connected = 0;
             close(w->fd);
+
+            icw->offset = 0;
+            icw->size = 0;
 
             //dump element to disk
             //TODO
@@ -334,11 +340,12 @@ void cleanup_list_cb(struct ev_loop* loop, ev_timer* w, int revents) {
     list_t* list = ctx->list;
 
     size_t deleted = 0;
+
     while (list->head->next) {
         for (int i = 0; i < MAX_CLIENTS; ++i) {
             io_client_watcher_t* icw = ctx->clients[i];
             if (icw && icw->item == list->head)
-                return;
+                break;
         }
 
         ++deleted;
