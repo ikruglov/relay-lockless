@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-std=gnu99 -O3 -g -Wall -DDEBUG -DEV_STANDALONE=1 -fno-strict-aliasing
+CFLAGS=-std=gnu99 -O3 -g -Wall -DNDEBUG -DEV_STANDALONE=1 -fno-strict-aliasing
 INCLUDE=-I src -I libev
 
 all: relay

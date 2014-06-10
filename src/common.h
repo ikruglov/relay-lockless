@@ -19,10 +19,15 @@
         errx(EXIT_FAILURE, FORMAT(fmt, ##arg));
 #define ERRPX(fmt, arg...) \
         ERRX(fmt ": %s", ##arg, errno ? strerror(errno) : "undefined error")
-#define _D(fmt,arg...) \
-        printf(FORMAT(fmt, ##arg))
 #define _E(fmt,arg...) \
         printf(FORMAT(fmt ": %s", ##arg, errno ? strerror(errno) : "undefined error"))
+
+#ifdef DEBUG
+#define _D(fmt,arg...) \
+        printf(FORMAT(fmt, ##arg))
+#else
+#define _D(fmt,arg...)
+#endif
 
 void* malloc_or_die(size_t size);
 void* calloc_or_die(size_t nmemb, size_t size);
