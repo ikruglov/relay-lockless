@@ -28,10 +28,11 @@ result-65000-relay:582241
 ```
 
 the results are got by:
-1. check out https://github.com/demerphq/relay
-2. make
-3. replace bin/relay by bin/relay from relay-lockless
-4. run
+    check out https://github.com/demerphq/relay
+    make
+    replace bin/relay by bin/relay from relay-lockless
+    run
+
 ```
     $ cd relay/test
     $ ./setup.sh
