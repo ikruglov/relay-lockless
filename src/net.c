@@ -64,7 +64,7 @@ socket_t* socketize_sockaddr(const struct sockaddr_in* sockaddr) {
     sock->type = SOCK_STREAM;
     sock->port = ntohs(sockaddr->sin_port);
 
-    memcpy(&sock->in, sockaddr, sizeof(sockaddr));
+    memcpy(&sock->in, sockaddr, sizeof(struct sockaddr_in));
 
     snprintf(sock->to_string, PATH_MAX,
             "%s@%s:%d", (sock->proto == IPPROTO_TCP ? "tcp" : "udp"),
