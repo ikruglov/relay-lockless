@@ -10,17 +10,17 @@ mkdir:
 
 relay: mkdir
 	$(CC) -c -O3 -g -DEV_STANDALONE=1 -Wno-all libev/ev.c -o ev.o
-	$(CC) $(CFLAGS) $(INCLUDE) ev.o src/common.c src/list.c src/net.c src/server_ctx.c src/client_ctx.c src/background_ctx.c src/relay.c -o bin/relay
+	$(CC) $(CFLAGS) $(INCLUDE) ev.o src/list.c src/net.c src/server_ctx.c src/client_ctx.c src/background_ctx.c src/relay.c -o bin/relay
 
 tsan: mkdir
 	$(CC) -c -O3 -g -fPIC -DEV_STANDALONE=1 -Wno-all libev/ev.c -o ev.o
-	$(CC) $(CFLAGS) $(INCLUDE) $(TSAN) ev.o src/common.c src/list.c src/net.c src/server_ctx.c src/client_ctx.c src/background_ctx.c src/relay.c -o bin/relay
+	$(CC) $(CFLAGS) $(INCLUDE) $(TSAN) ev.o src/list.c src/net.c src/server_ctx.c src/client_ctx.c src/background_ctx.c src/relay.c -o bin/relay
 
 test: test_queue
 	$(CC) test/becho.c -o bin/becho
 
 test_queue: mkdir
-	$(CC) $(CFLAGS) $(INCLUDE) src/list.c src/common.c test/test_queue.c -o bin/test_queue
+	$(CC) $(CFLAGS) $(INCLUDE) src/list.c test/test_queue.c -o bin/test_queue
 
 clean:
 	rm -f *.o

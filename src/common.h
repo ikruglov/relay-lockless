@@ -10,9 +10,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#define STMT_START do
-#define STMT_END while (0)
-
 #define FORMAT(fmt, arg...) \
         fmt " [%s():%s:%d @ %u]\n", ##arg, __func__, __FILE__, __LINE__, (unsigned int) time(NULL)
 #define ERRX(fmt, arg...) \
@@ -29,7 +26,18 @@
 #define _D(fmt,arg...)
 #endif
 
-void* malloc_or_die(size_t size);
-void* calloc_or_die(size_t nmemb, size_t size);
+inline static
+void* malloc_or_die(size_t size) {
+    void* ptr = malloc(size);
+    if (!ptr) ERRPX("Failed to malloc %zu bytes", size);
+    return ptr;
+}
+
+inline static
+void* calloc_or_die(size_t nmemb, size_t size) {
+    void* ptr = calloc(nmemb, size);
+    if (!ptr) ERRPX("Failed to calloc %zu bytes", nmemb * size);
+    return ptr;
+}
 
 #endif
