@@ -79,3 +79,30 @@ It's done by applying following algorithm:
 
 Comparasion of IDs garantees that current item can be sefely dequeued
 because nobody holds a pointer to it or to any items before it.
+
+### Data structures shared between threads
+
+Access to following data structures should be synchronized:
+
+```
+# list.h
+struct _list_item {
+    struct _list_item* next;
+    uint64_t id;   // id within a list
+    uint32_t size; // size of payload
+    char data[];   // payload
+};
+
+struct _list {
+    size_t size;
+    struct _list_item* head;
+    struct _list_item* tail;
+};
+
+# client_ctx.h
+struct _client_context {
+    ...
+    io_client_watcher_t* clients[MAX_CLIENT_CONNECTIONS];
+    ...
+};
+```
