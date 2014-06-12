@@ -14,6 +14,10 @@ struct _io_client_watcher {
     uint32_t offset;   // offset inside item->data, 4GB at most
     list_item_t* item; // current item in g_list
     socket_t* sock;    // watcher owns socket object
+#ifdef DOSTATS
+    uint64_t bytes;
+    uint64_t processed;
+#endif
     int connected;
 };
 

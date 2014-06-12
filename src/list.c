@@ -39,6 +39,9 @@ list_item_t* list_new(uint32_t size) {
     item->size = size; //TODO CAS
     item->next = NULL;
     item->id = (uint64_t) -1;
+#ifdef DOSTATS
+    gettimeofday(&item->tv, NULL);
+#endif
     return item;
 }
 

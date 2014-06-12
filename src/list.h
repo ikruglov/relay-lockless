@@ -3,11 +3,15 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <sys/time.h>
 
 struct _list_item {
     struct _list_item* next;
     uint64_t id;   // id within a list
     uint32_t size; // size of payload
+#ifdef DOSTATS
+    struct timeval tv;
+#endif
     char data[];   // payload
 };
 

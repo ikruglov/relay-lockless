@@ -87,7 +87,7 @@ void udp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
     if (rlen > 0) {
         // normal workflow
         //_DN("UDP packet received: %d", isw, isw->size);
-        isw->size = rlen;
+        isw->size = rlen; // to have correct sizeof(isw->size)
         
         if (isw->size > MAX_MESSAGE_SIZE) {
             _DN("UDP message size %d is bigger then %d", isw, isw->size, MAX_MESSAGE_SIZE);
@@ -104,6 +104,11 @@ void udp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
         // wakeup stopped clients
         client_ctx_t* cctx = ctx->client_ctx;
         if (cctx) ev_async_send(cctx->loop, &cctx->wakeup_clients);
+
+#if DOSTATS
+        ATOMIC_INCREMENT(isw->processed);
+        ATOMIC_INCREASE(isw->bytes, isw->size);
+#endif
 
         isw->offset = 0;
         isw->size = 0;
@@ -179,6 +184,11 @@ void tcp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
             // wakeup stopped clients
             client_ctx_t* cctx = ctx->client_ctx;
             if (cctx) ev_async_send(cctx->loop, &cctx->wakeup_clients);
+
+#if DOSTATS
+            ATOMIC_INCREMENT(isw->processed);
+            ATOMIC_INCREASE(isw->bytes, isw->size);
+#endif
 
             isw->offset = 0;
             isw->size = 0;

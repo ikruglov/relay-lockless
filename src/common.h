@@ -29,6 +29,8 @@
 #define ATOMIC_READ(__v)             __sync_add_and_fetch(&(__v), 0)
 #define ATOMIC_INCREMENT(__v) (void) __sync_add_and_fetch(&(__v), 1)
 #define ATOMIC_DECREMENT(__v) (void) __sync_sub_and_fetch(&(__v), 1)
+#define ATOMIC_INCREASE(__v, __n)    __sync_add_and_fetch(&(__v), (__n))
+#define ATOMIC_DECREASE(__v, __n)    __sync_sub_and_fetch(&(__v), (__n))
 #define ATOMIC_CAS(__v, __o, __n)    __sync_bool_compare_and_swap(&(__v), (__o), (__n))
 
 inline static

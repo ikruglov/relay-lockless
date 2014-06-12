@@ -107,6 +107,11 @@ void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents) {
 
         // data of current item has been sent, advance to next one
         if (icw->offset >= icw->size) {
+#ifdef DOSTATS
+            ATOMIC_INCREMENT(icw->processed);
+            ATOMIC_INCREASE(icw->bytes, icw->size);
+#endif
+
             list_item_t* next = list_item_next(item);
             if (!next) {
                 // nothing to pick up from queue, temporary stop watcher

@@ -11,6 +11,9 @@ struct _bg_context {
     server_ctx_t* server_ctx;
     client_ctx_t* client_ctx;
     ev_timer cleanup_list;
+#ifdef DOSTATS
+    ev_timer stats_monitor;
+#endif
 };
 
 typedef struct _bg_context bg_ctx_t;
@@ -18,5 +21,6 @@ bg_ctx_t* init_bg_context(server_ctx_t* server_ctx, client_ctx_t* client_ctx);
 void free_bg_context(bg_ctx_t* ctx);
 
 void cleanup_list_cb(struct ev_loop* loop, ev_timer* w, int revents);
+void stats_monitor_cb(struct ev_loop* loop, ev_timer* w, int revents);
 
 #endif

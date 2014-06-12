@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-std=gnu99 -O3 -g -Wall -pthread -DDEBUG -DEV_STANDALONE=1 -fno-strict-aliasing
+CFLAGS=-std=gnu99 -O3 -g -Wall -pthread -DDEBUG -DDOSTATS -DEV_STANDALONE=1 -fno-strict-aliasing
 TSAN=-fsanitize=thread -fsanitize-blacklist=blacklist.tsan -fPIE -pie # need clang for compilation
 INCLUDE=-I src -I libev
 
