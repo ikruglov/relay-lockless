@@ -41,7 +41,9 @@ void reconnect_clients_cb(struct ev_loop* loop, ev_timer* w, int revents);
 
 int try_connect(io_client_watcher_t* icw);
 
-void set_list_item(io_client_watcher_t* w, list_item_t* item);
+list_item_t* set_list_item(io_client_watcher_t* w, list_item_t* item);
 list_item_t* get_list_item(io_client_watcher_t* w);
+io_client_watcher_t* set_context_client(client_ctx_t* ctx, size_t i, io_client_watcher_t* w);
+io_client_watcher_t* get_context_client(client_ctx_t* ctx, size_t i);
 
 #endif

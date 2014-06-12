@@ -32,7 +32,7 @@ void cleanup_list_cb(struct ev_loop* loop, ev_timer* w, int revents) {
 
     uint64_t min_id = (uint64_t) -1;
     for (int i = 0; i < MAX_CLIENT_CONNECTIONS; ++i) {
-        io_client_watcher_t* icw = ATOMIC_READ(client_ctx->clients[i]);
+        io_client_watcher_t* icw = get_context_client(client_ctx, i);
         if (!icw) continue;
 
         list_item_t* item = get_list_item(icw);

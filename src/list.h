@@ -4,11 +4,6 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define ATOMIC_READ(__p)                __sync_fetch_and_add(&__p, 0)
-#define ATOMIC_INCREMENT(__i, __cnt)    __sync_fetch_and_add(&__i, __cnt);
-#define ATOMIC_DECREMENT(__i, __cnt)    __sync_fetch_and_sub(&__i, __cnt);
-#define ATOMIC_CMPXCHG(__p, __v1, __v2) __sync_bool_compare_and_swap(&__p, __v1, __v2)
-
 struct _list_item {
     struct _list_item* next;
     uint64_t id;   // id within a list
@@ -25,9 +20,11 @@ struct _list {
 typedef struct _list list_t;
 typedef struct _list_item list_item_t;
 
+// these function must be called in thread safe environment
 list_t* list_init();
 void list_free(list_t* list);
 
+// these are thread safe (but only in terms of memory synchronization)
 list_item_t* list_head(list_t* list);
 list_item_t* list_tail(list_t* list);
 list_item_t* list_new(uint32_t size);
@@ -39,6 +36,8 @@ size_t list_size(list_t* list);
 size_t list_distance(list_t* list, list_item_t* item);
 
 uint64_t list_item_id(list_item_t* item);
+uint32_t list_item_size(list_item_t* item);
 list_item_t* list_item_next(list_item_t* item);
+// TODO list_item_data()
 
 #endif

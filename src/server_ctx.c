@@ -95,6 +95,7 @@ void udp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
         }
 
         // enqueue new item in list
+        // TODO fix data race with item->data, tsan is silient about it!
         list_item_t* item = list_new(rlen + sizeof(isw->size));
         memcpy(item->data, &isw->size, sizeof(isw->size));
         memcpy(item->data + sizeof(isw->size), isw->buf, rlen);
@@ -171,6 +172,7 @@ void tcp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
             //_DN("TCP packet received %d", isw, isw->size);
 
             // enqueue new item in list
+            // TODO fix data race
             list_item_t* item = list_enqueue_new(ctx->list, isw->size);
             memcpy(item->data, isw->buf, isw->size); // buf already has size in it
 
