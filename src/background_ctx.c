@@ -118,7 +118,7 @@ void stats_monitor_cb(struct ev_loop* loop, ev_timer* w, int revents) {
     uint64_t servers_processed = total_servers_processed - last_servers_processed;
     uint64_t clients_processed = total_clients_processed - last_clients_processed;
 
-    printf("STATS: recv %10.2f msg/s %6.2f MB/s    sent %10.2f msg/s %6.2f MB/s    qlag %8.2f    qsize %zu\n",
+    printf("STATS: recv %10.2f msg/s %10.2f MB/s    sent %10.2f msg/s %10.2f MB/s    qlag %10.2f    qsize %zu\n",
             servers_processed / (double) ((double) elapsed / 1000000.),
             servers_bytes     / (double) ((double) elapsed / 1000000.) / 1024 / 1024,
             clients_processed / (double) ((double) elapsed / 1000000.),
