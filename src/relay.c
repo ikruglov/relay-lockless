@@ -55,7 +55,6 @@ int main(int argc, char** argv) {
 
     pthread_t server_tid = start_thread(start_event_loop, server_ctx->loop, 0);
     pthread_join(server_tid, NULL);
-    sleep(10);
 
     free_bg_context(bg_ctx);
     free_client_context(client_ctx);
