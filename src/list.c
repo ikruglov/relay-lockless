@@ -24,16 +24,6 @@ void list_free(list_t* list) {
 }
 
 // thread safe functions
-list_item_t* list_head(list_t* list) {
-    assert(list);
-    return ATOMIC_READ(list->head);
-}
-
-list_item_t* list_tail(list_t* list) {
-    assert(list);
-    return ATOMIC_READ(list->tail);
-}
-
 list_item_t* list_new(uint32_t size) {
     list_item_t* item = (list_item_t*) malloc_or_die(sizeof(list_item_t) + size);
     item->size = size; //TODO CAS
@@ -78,28 +68,6 @@ int list_dequeue(list_t* list) {
     return 1;
 }
 
-size_t list_size(list_t* list) {
-    assert(list);
-    return ATOMIC_READ(list->size);
-}
-
-size_t list_distance(list_t* list, list_item_t* item) {
-    assert(list);
-    list_item_t* tail = ATOMIC_READ(list->tail);
-    return ATOMIC_READ(tail->id) - ATOMIC_READ(item->id);
-}
-
-uint64_t list_item_id(list_item_t* item) {
-    assert(item);
-    return ATOMIC_READ(item->id);
-}
-
-uint32_t list_item_size(list_item_t* item) {
-    assert(item);
-    return ATOMIC_READ(item->size);
-}
-
-list_item_t* list_item_next(list_item_t* item) {
-    assert(item);
-    return ATOMIC_READ(item->next);
+size_t list_distance(list_item_t* litem, list_item_t* ritem) {
+    return llabs((int64_t) ATOMIC_READ(litem->id) - (int64_t) ATOMIC_READ(ritem->id));
 }

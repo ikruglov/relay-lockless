@@ -21,6 +21,15 @@ struct _list {
     struct _list_item* tail;
 };
 
+#define LIST_HEAD(__l) ATOMIC_READ((__l)->head)
+#define LIST_TAIL(__l) ATOMIC_READ((__l)->tail)
+#define LIST_SIZE(__l) ATOMIC_READ((__l)->size)
+
+#define LIST_ITEM_ID(__i) ATOMIC_READ((__i)->id)
+#define LIST_ITEM_SIZE(__i) ATOMIC_READ((__i)->size)
+#define LIST_ITEM_NEXT(__i) ATOMIC_READ((__i)->next)
+//#define LIST_ITEM_DATA
+
 typedef struct _list list_t;
 typedef struct _list_item list_item_t;
 
@@ -29,19 +38,11 @@ list_t* list_init();
 void list_free(list_t* list);
 
 // these are thread safe (but only in terms of memory synchronization)
-list_item_t* list_head(list_t* list);
-list_item_t* list_tail(list_t* list);
 list_item_t* list_new(uint32_t size);
 list_item_t* list_enqueue(list_t* list, list_item_t* item);
 list_item_t* list_enqueue_new(list_t* list, uint32_t size);
 
 int list_dequeue(list_t* list);
-size_t list_size(list_t* list);
-size_t list_distance(list_t* list, list_item_t* item);
-
-uint64_t list_item_id(list_item_t* item);
-uint32_t list_item_size(list_item_t* item);
-list_item_t* list_item_next(list_item_t* item);
-// TODO list_item_data()
+size_t list_distance(list_item_t* litem, list_item_t* ritem);
 
 #endif

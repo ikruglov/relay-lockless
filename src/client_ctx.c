@@ -53,7 +53,7 @@ io_client_watcher_t* init_io_client_watcher(client_ctx_t* ctx, io_watcher_cb cb,
         return NULL;
     }
 
-    set_list_item(icw, ctx->list->head);
+    set_list_item(icw, LIST_HEAD(ctx->list));
 
     icw->connected = 0;
     icw->sock = sock;
@@ -112,7 +112,7 @@ void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents) {
             ATOMIC_INCREASE(icw->bytes, icw->size);
 #endif
 
-            list_item_t* next = list_item_next(item);
+            list_item_t* next = LIST_ITEM_NEXT(item);
             if (!next) {
                 // nothing to pick up from queue, temporary stop watcher
                 // and start ev_async wakeup_clients watcher

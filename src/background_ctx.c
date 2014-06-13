@@ -41,7 +41,7 @@ void cleanup_list_cb(struct ev_loop* loop, ev_timer* w, int revents) {
         if (!icw) continue;
 
         list_item_t* item = get_list_item(icw);
-        uint64_t id = list_item_id(item);
+        uint64_t id = LIST_ITEM_ID(item);
 
         if (id < min_id)
             min_id = id;
@@ -51,8 +51,8 @@ void cleanup_list_cb(struct ev_loop* loop, ev_timer* w, int revents) {
     list_t* list = server_ctx->list;
 
     do {    
-        list_item_t* head = list_head(list);
-        if (list_item_id(head) >= min_id)
+        list_item_t* head = LIST_HEAD(list);
+        if (LIST_ITEM_ID(head) >= min_id)
             break;
 
         ++deleted;
@@ -106,7 +106,7 @@ void stats_monitor_cb(struct ev_loop* loop, ev_timer* w, int revents) {
         total_clients_processed += ATOMIC_READ(icw->processed);
 
         active_clients++;
-        queue_lag += list_distance(server_ctx->list, get_list_item(icw));
+        queue_lag += list_distance(LIST_TAIL(server_ctx->list), get_list_item(icw));
     }
 
     struct timeval current;
@@ -124,7 +124,7 @@ void stats_monitor_cb(struct ev_loop* loop, ev_timer* w, int revents) {
             clients_processed / (double) ((double) elapsed / 1000000.),
             clients_bytes     / (double) ((double) elapsed / 1000000.) / 1024 / 1024,
             (double) ((double) queue_lag) / active_clients,
-            list_size(server_ctx->list));
+            LIST_SIZE(server_ctx->list));
 
     memcpy(&last, &current, sizeof(current));
     last_servers_bytes = total_servers_bytes;
