@@ -150,49 +150,58 @@ tcp_accept_cb_error:
     free_server_watcher(ctx, isw);
 }
 
+static char* buf = NULL;
+static size_t buf_size = MAX_MESSAGE_SIZE;
 void tcp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
     server_ctx_t* ctx = (server_ctx_t*) ev_userdata(loop);
     io_server_watcher_t* isw = (io_server_watcher_t*) w;
 
-    // if isw->size empty, it means that new message is expected
-    // read its size first, body afterwards
-    ssize_t rlen = isw->size == 0
-                 ? recv(w->fd, isw->buf + isw->offset, sizeof(isw->size) - isw->offset, 0)
-                 : recv(w->fd, isw->buf + isw->offset, isw->size - isw->offset, 0);
+    if (!buf)
+        buf = malloc(buf_size);
+
+    char* pbuf = buf;
+    ssize_t rlen = recv(w->fd, pbuf, buf_size, 0);
 
     if (rlen > 0) {
-        isw->offset += rlen;
-        if (isw->size == 0 && isw->offset >= sizeof(isw->size)) {
-            memcpy(&isw->size, isw->buf, sizeof(isw->size));
-            isw->size += sizeof(isw->size);
+        while (rlen > 0) {
+            if (isw->size == 0 && rlen + isw->offset >= sizeof(isw->size)) {
+                memcpy((char*) &isw->size, isw->buf, isw->offset);
+                memcpy((char*) &isw->size + isw->offset, pbuf, sizeof(isw->size) - isw->offset);
 
-            if (isw->size > MAX_MESSAGE_SIZE) {
-                _DN("TCP message size %d is bigger then %d", isw, isw->size, MAX_MESSAGE_SIZE);
-                goto tcp_server_cb_error;
+#ifdef DEBUG
+                if (isw->size > MAX_MESSAGE_SIZE) {
+                    _DN("TCP message size %d is bigger then %d", isw, isw->size, MAX_MESSAGE_SIZE);
+                    exit(1);
+                    goto tcp_server_cb_error;
+                }
+#endif
+            }
+
+            size_t total_size = isw->size + sizeof(isw->size);
+            if (rlen + isw->offset >= total_size) {
+                //_DN("TCP packet received: %d", isw, isw->size);
+                list_item_t* item = list_enqueue_new(ctx->list, total_size);
+                memcpy(item->data, isw->buf, isw->offset);
+                memcpy(item->data + isw->offset, pbuf, total_size - isw->offset);
+
+                pbuf += total_size - isw->offset;
+                rlen -= total_size - isw->offset;
+
+#if DOSTATS
+                ATOMIC_INCREMENT(isw->processed);
+                ATOMIC_INCREASE(isw->bytes, isw->size);
+#endif
+
+                isw->offset = 0;
+                isw->size = 0;
+            } else {
+                break;
             }
         }
 
-        if (isw->offset == isw->size) {
-            // a message is fully read
-            //_DN("TCP packet received %d", isw, isw->size);
-
-            // enqueue new item in list
-            // TODO fix data race
-            list_item_t* item = list_enqueue_new(ctx->list, isw->size);
-            memcpy(item->data, isw->buf, isw->size); // buf already has size in it
-
-            // wakeup stopped clients
-            client_ctx_t* cctx = ctx->client_ctx;
-            if (cctx) ev_async_send(cctx->loop, &cctx->wakeup_clients);
-
-#if DOSTATS
-            ATOMIC_INCREMENT(isw->processed);
-            ATOMIC_INCREASE(isw->bytes, isw->size);
-#endif
-
-            isw->offset = 0;
-            isw->size = 0;
-        }
+        //isw->size = 0;
+        memcpy(isw->buf + isw->offset, pbuf, rlen);
+        isw->offset += rlen;
     } else if (rlen == 0) {
         _DN("shutdown", isw);
         goto tcp_server_cb_error;
