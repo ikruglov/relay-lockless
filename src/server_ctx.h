@@ -15,11 +15,11 @@ struct _io_server_watcher {
     uint32_t size;   // 4GB at most
     uint32_t offset; // 4GB at most
     socket_t* sock;  // watcher owns socket object
+    list_item_t* item;
 #ifdef DOSTATS
     uint64_t bytes;
     uint64_t processed;
 #endif
-    char buf[MAX_MESSAGE_SIZE];
 };
 
 typedef struct _io_server_watcher io_server_watcher_t;

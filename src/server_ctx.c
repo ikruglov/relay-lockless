@@ -55,6 +55,7 @@ io_server_watcher_t* init_io_server_watcher(server_ctx_t* ctx, io_watcher_cb cb,
     }
 
     ev_io_init(&isw->io, cb, sock->socket, EV_READ);
+    isw->item = NULL;
     isw->sock = sock;
     isw->offset = 0;
     isw->size = 0;
@@ -82,43 +83,43 @@ void udp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
     server_ctx_t* ctx = (server_ctx_t*) ev_userdata(loop);
     io_server_watcher_t* isw = (io_server_watcher_t*) w;
 
-    ssize_t rlen = recv(w->fd, isw->buf, sizeof(isw->buf), 0);
-
-    if (rlen > 0) {
-        // normal workflow
-        //_DN("UDP packet received: %d", isw, isw->size);
-        isw->size = rlen; // to have correct sizeof(isw->size)
-        
-        if (isw->size > MAX_MESSAGE_SIZE) {
-            _DN("UDP message size %d is bigger then %d", isw, isw->size, MAX_MESSAGE_SIZE);
-            goto udp_server_cb_error;
-        }
-
-        // enqueue new item in list
-        // TODO fix data race with item->data, tsan is silient about it!
-        list_item_t* item = list_new(rlen + sizeof(isw->size));
-        memcpy(item->data, &isw->size, sizeof(isw->size));
-        memcpy(item->data + sizeof(isw->size), isw->buf, rlen);
-        list_enqueue(ctx->list, item);
-
-        // wakeup stopped clients
-        client_ctx_t* cctx = ctx->client_ctx;
-        if (cctx) ev_async_send(cctx->loop, &cctx->wakeup_clients);
-
-#if DOSTATS
-        ATOMIC_INCREMENT(isw->processed);
-        ATOMIC_INCREASE(isw->bytes, isw->size);
-#endif
-
-        isw->offset = 0;
-        isw->size = 0;
-    } else if (rlen == 0) {
-        _DN("shutdown", isw);
-        goto udp_server_cb_error;
-    } else if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
-        _EN("recv() returned error", isw);
-        goto udp_server_cb_error;
-    }
+//    ssize_t rlen = recv(w->fd, isw->buf, sizeof(isw->buf), 0);
+//
+//    if (rlen > 0) {
+//        // normal workflow
+//        //_DN("UDP packet received: %d", isw, isw->size);
+//        isw->size = rlen; // to have correct sizeof(isw->size)
+//        
+//        if (isw->size > MAX_MESSAGE_SIZE) {
+//            _DN("UDP message size %d is bigger then %d", isw, isw->size, MAX_MESSAGE_SIZE);
+//            goto udp_server_cb_error;
+//        }
+//
+//        // enqueue new item in list
+//        // TODO fix data race with item->data, tsan is silient about it!
+//        list_item_t* item = list_new(rlen + sizeof(isw->size));
+//        memcpy(item->data, &isw->size, sizeof(isw->size));
+//        memcpy(item->data + sizeof(isw->size), isw->buf, rlen);
+//        list_enqueue(ctx->list, item);
+//
+//        // wakeup stopped clients
+//        client_ctx_t* cctx = ctx->client_ctx;
+//        if (cctx) ev_async_send(cctx->loop, &cctx->wakeup_clients);
+//
+//#if DOSTATS
+//        ATOMIC_INCREMENT(isw->processed);
+//        ATOMIC_INCREASE(isw->bytes, isw->size);
+//#endif
+//
+//        isw->offset = 0;
+//        isw->size = 0;
+//    } else if (rlen == 0) {
+//        _DN("shutdown", isw);
+//        goto udp_server_cb_error;
+//    } else if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
+//        _EN("recv() returned error", isw);
+//        goto udp_server_cb_error;
+//    }
 
     return;
 
@@ -156,30 +157,37 @@ void tcp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
 
     // if isw->size empty, it means that new message is expected
     // read its size first, body afterwards
-    ssize_t rlen = isw->size == 0
-                 ? recv(w->fd, isw->buf + isw->offset, sizeof(isw->size) - isw->offset, 0)
-                 : recv(w->fd, isw->buf + isw->offset, isw->size - isw->offset, 0);
+    int need_size = isw->size == 0;
+    ssize_t rlen = need_size
+                 ? recv(w->fd, &isw->size, sizeof(isw->size), MSG_PEEK)
+                 : recv(w->fd, isw->item->data + isw->offset, isw->size - isw->offset, 0);
 
+    //printf("%d %d %p\n", rlen, isw->size, isw->item);
     if (rlen > 0) {
-        isw->offset += rlen;
-        if (isw->size == 0 && isw->offset >= sizeof(isw->size)) {
-            memcpy(&isw->size, isw->buf, sizeof(isw->size));
+        if (need_size) {
+            if (rlen != sizeof(isw->size)) {
+                _EN("recv() failed to read message size", isw);
+                goto tcp_server_cb_error;
+            }
+
             isw->size += sizeof(isw->size);
 
             if (isw->size > MAX_MESSAGE_SIZE) {
                 _DN("TCP message size %d is bigger then %d", isw, isw->size, MAX_MESSAGE_SIZE);
                 goto tcp_server_cb_error;
             }
+
+            isw->item = list_new(isw->size); //FIXME data race
+            return;
         }
 
+        isw->offset += rlen;
         if (isw->offset == isw->size) {
             // a message is fully read
             //_DN("TCP packet received %d", isw, isw->size);
 
             // enqueue new item in list
-            // TODO fix data race
-            list_item_t* item = list_enqueue_new(ctx->list, isw->size);
-            memcpy(item->data, isw->buf, isw->size); // buf already has size in it
+            list_enqueue(ctx->list, isw->item);
 
             // wakeup stopped clients
             client_ctx_t* cctx = ctx->client_ctx;
@@ -190,6 +198,7 @@ void tcp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
             ATOMIC_INCREASE(isw->bytes, isw->size);
 #endif
 
+            isw->item = NULL; // FIXME data race
             isw->offset = 0;
             isw->size = 0;
         }
