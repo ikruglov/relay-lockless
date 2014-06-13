@@ -19,7 +19,7 @@ struct _io_server_watcher {
     uint64_t bytes;
     uint64_t processed;
 #endif
-    char buf[MAX_MESSAGE_SIZE + sizeof(uint32_t)];
+    char buf[MAX_MESSAGE_SIZE];
 };
 
 typedef struct _io_server_watcher io_server_watcher_t;
