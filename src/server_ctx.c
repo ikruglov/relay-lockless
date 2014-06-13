@@ -164,7 +164,6 @@ void tcp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
         isw->offset += rlen;
         if (isw->size == 0 && isw->offset >= sizeof(isw->size)) {
             memcpy(&isw->size, isw->buf, sizeof(isw->size));
-            isw->size += sizeof(isw->size);
 
             if (isw->size > MAX_MESSAGE_SIZE) {
                 _DN("TCP message size %d is bigger then %d", isw, isw->size, MAX_MESSAGE_SIZE);
