@@ -27,16 +27,17 @@ static void* worker(void* arg) {
         ERRPX("Failed to connect");
 
     size_t offset = 0;
+    size_t size = data_size + sizeof(data_size);
 
     while (1) {
-        if (offset >= data_size) {
+        if (offset >= size) {
             ATOMIC_INCREMENT(counter);
             offset = 0;
         }
 
         ssize_t wlen = use_send
-                     ?  send(fd, data + offset, data_size - offset, 0)
-                     :  sendto(fd, data + offset, data_size - offset, 0, (struct sockaddr*) &sock->in, sizeof(sock->in));
+                     ?  send(fd, data + offset, size - offset, 0)
+                     :  sendto(fd, data + offset, size - offset, 0, (struct sockaddr*) &sock->in, sizeof(sock->in));
 
         if (wlen > 0) {
             offset += wlen;
@@ -65,7 +66,7 @@ int main(int argc, char** argv) {
     total          = argc > 3 ? atoi(argv[3]) : (size_t) -1;
     data_size      = argc > 4 ? atoi(argv[4]) : 32 * 1024;
 
-    data = malloc(data_size);
+    data = malloc(data_size + sizeof(data_size));
     memcpy(data, &data_size, sizeof(data_size));
 
     printf("starting tclient to %s in %zu threads, cnt: %zu, size: %zu\n",
