@@ -37,10 +37,10 @@ void cleanup_list_cb(struct ev_loop* loop, ev_timer* w, int revents) {
 
     uint64_t min_id = (uint64_t) -1;
     for (int i = 0; i < MAX_CLIENT_CONNECTIONS; ++i) {
-        io_client_watcher_t* icw = get_context_client(client_ctx, i);
+        io_client_watcher_t* icw = GET_CONTEXT_CLIENT(client_ctx, i);
         if (!icw) continue;
 
-        list_item_t* item = get_list_item(icw);
+        list_item_t* item = GET_LIST_ITEM(icw);
         uint64_t id = LIST_ITEM_ID(item);
 
         if (id < min_id)
@@ -99,14 +99,14 @@ void stats_monitor_cb(struct ev_loop* loop, ev_timer* w, int revents) {
     uint64_t total_clients_bytes = 0;
     uint64_t total_clients_processed = 0;
     for (int i = 0; i < MAX_CLIENT_CONNECTIONS; ++i) {
-        io_client_watcher_t* icw = get_context_client(client_ctx, i);
+        io_client_watcher_t* icw = GET_CONTEXT_CLIENT(client_ctx, i);
         if (!icw) continue;
 
         total_clients_bytes     += ATOMIC_READ(icw->bytes);
         total_clients_processed += ATOMIC_READ(icw->processed);
 
         active_clients++;
-        queue_lag += list_distance(LIST_TAIL(server_ctx->list), get_list_item(icw));
+        queue_lag += list_distance(LIST_TAIL(server_ctx->list), GET_LIST_ITEM(icw));
     }
 
     struct timeval current;

@@ -190,8 +190,7 @@ void tcp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
             list_enqueue(ctx->list, isw->item);
 
             // wakeup stopped clients
-            client_ctx_t* cctx = ctx->client_ctx;
-            if (cctx) ev_async_send(cctx->loop, &cctx->wakeup_clients);
+            ev_async_send(ctx->client_ctx->loop, &ctx->client_ctx->wakeup_clients);
 
 #if DOSTATS
             ATOMIC_INCREMENT(isw->processed);

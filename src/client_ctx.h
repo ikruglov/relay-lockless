@@ -7,6 +7,11 @@
 
 #define MAX_CLIENT_CONNECTIONS 1024
 
+#define SET_LIST_ITEM(__w, __i)           ATOMIC_WRITE((__w)->item, (__i))
+#define GET_LIST_ITEM(__w)                ATOMIC_READ ((__w)->item)
+#define SET_CONTEXT_CLIENT(__c, __i, __w) ATOMIC_WRITE((__c)->clients[__i], __w)
+#define GET_CONTEXT_CLIENT(__c, __i)      ATOMIC_READ ((__c)->clients[__i])
+
 struct _io_client_watcher {
     ev_io io;
     size_t id;         // id inside _context->clients
@@ -28,6 +33,7 @@ struct _client_context {
     struct ev_loop* loop;    // libev loop
     ev_async wakeup_clients; // priority 1
     ev_timer reconnect_clients;
+    size_t active_clients, total_clients;
     io_client_watcher_t* clients[MAX_CLIENT_CONNECTIONS]; // priority 0
 };
 
@@ -44,10 +50,5 @@ void wakeup_clients_cb(struct ev_loop* loop, ev_async* w, int revents);
 void reconnect_clients_cb(struct ev_loop* loop, ev_timer* w, int revents);
 
 int try_connect(io_client_watcher_t* icw);
-
-list_item_t* set_list_item(io_client_watcher_t* w, list_item_t* item);
-list_item_t* get_list_item(io_client_watcher_t* w);
-io_client_watcher_t* set_context_client(client_ctx_t* ctx, size_t i, io_client_watcher_t* w);
-io_client_watcher_t* get_context_client(client_ctx_t* ctx, size_t i);
 
 #endif
