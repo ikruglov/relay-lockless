@@ -25,8 +25,10 @@ test_queue: mkdir
 tclient: mkdir
 	$(CC) $(CFLAGS) $(INCLUDE) test/tclient.c src/net.c -o bin/tclient
 
+tserver: mkdir
+	$(CC) $(CFLAGS) $(INCLUDE) test/tserver.c src/net.c -o bin/tserver
 
 clean:
 	rm -f *.o
-	rm -f bin/relay bin/test* bin/tclient
+	rm -f bin/relay bin/test* bin/tclient bin/tserver
 	rm -f bin/becho
