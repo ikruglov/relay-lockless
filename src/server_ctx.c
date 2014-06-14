@@ -172,7 +172,7 @@ void tcp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
 
             isw->size += sizeof(isw->size);
 
-            if (isw->size > MAX_MESSAGE_SIZE) {
+            if (isw->size > MAX_MESSAGE_SIZE + sizeof(isw->size)) {
                 _DN("TCP message size %d is bigger then %d", isw, isw->size, MAX_MESSAGE_SIZE);
                 goto tcp_server_cb_error;
             }
