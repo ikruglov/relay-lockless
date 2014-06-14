@@ -92,6 +92,20 @@ int setup_socket(socket_t* sock, int server_mode) {
             return -1;
         }
 
+        int sendbuf = 0;
+        if (sendbuf > 0 && setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sendbuf, sizeof(sendbuf)) < 0) {
+            _E("Failed to setsockopt SO_SNDBUF [%s]", sock->to_string);
+            close(fd);
+            return -1;
+        }
+
+        int recvbuf = 32 * 1024 * 1024;
+        if (recvbuf > 0 && setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &recvbuf, sizeof(recvbuf)) < 0) {
+            _E("Failed to setsockopt SO_RCVBUF [%s]", sock->to_string);
+            close(fd);
+            return -1;
+        }
+
         if (bind(fd, (struct sockaddr *) &sock->in, sizeof(sock->in))) {
             _E("Failed to bind socket [%s]", sock->to_string);
             close(fd); 
