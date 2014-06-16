@@ -83,43 +83,43 @@ void udp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
     server_ctx_t* ctx = (server_ctx_t*) ev_userdata(loop);
     io_server_watcher_t* isw = (io_server_watcher_t*) w;
 
-//    ssize_t rlen = recv(w->fd, isw->buf, sizeof(isw->buf), 0);
-//
-//    if (rlen > 0) {
-//        // normal workflow
-//        //_DN("UDP packet received: %d", isw, isw->size);
-//        isw->size = rlen; // to have correct sizeof(isw->size)
-//        
-//        if (isw->size > MAX_MESSAGE_SIZE) {
-//            _DN("UDP message size %d is bigger then %d", isw, isw->size, MAX_MESSAGE_SIZE);
-//            goto udp_server_cb_error;
-//        }
-//
-//        // enqueue new item in list
-//        // TODO fix data race with item->data, tsan is silient about it!
-//        list_item_t* item = list_new(rlen + sizeof(isw->size));
-//        memcpy(item->data, &isw->size, sizeof(isw->size));
-//        memcpy(item->data + sizeof(isw->size), isw->buf, rlen);
-//        list_enqueue(ctx->list, item);
-//
-//        // wakeup stopped clients
-//        client_ctx_t* cctx = ctx->client_ctx;
-//        if (cctx) ev_async_send(cctx->loop, &cctx->wakeup_clients);
-//
-//#if DOSTATS
-//        ATOMIC_INCREMENT(isw->processed);
-//        ATOMIC_INCREASE(isw->bytes, isw->size);
-//#endif
-//
-//        isw->offset = 0;
-//        isw->size = 0;
-//    } else if (rlen == 0) {
-//        _DN("shutdown", isw);
-//        goto udp_server_cb_error;
-//    } else if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
-//        _EN("recv() returned error", isw);
-//        goto udp_server_cb_error;
-//    }
+    char buf[MAX_MESSAGE_SIZE];
+    ssize_t rlen = recv(w->fd, buf, sizeof(buf), 0);
+
+    if (rlen > 0) {
+        // normal workflow
+        //_DN("UDP packet received: %d", isw, isw->size);
+        isw->size = rlen; // to have correct sizeof(isw->size)
+
+        if (isw->size > MAX_MESSAGE_SIZE) {
+            _DN("UDP message size %d is bigger then %d", isw, isw->size, MAX_MESSAGE_SIZE);
+            goto udp_server_cb_error;
+        }
+
+        // enqueue new item in list
+        // TODO fix data race with item->data, tsan is silient about it!
+        list_item_t* item = list_new(isw->size + sizeof(isw->size));
+        memcpy(item->data, &isw->size, sizeof(isw->size));
+        memcpy(item->data + sizeof(isw->size), buf, isw->size);
+        list_enqueue(ctx->list, item);
+
+        // wakeup stopped clients
+        ev_async_send(ctx->client_ctx->loop, &ctx->client_ctx->wakeup_clients);
+
+#if DOSTATS
+        ATOMIC_INCREMENT(isw->processed);
+        ATOMIC_INCREASE(isw->bytes, isw->size);
+#endif
+
+        isw->offset = 0;
+        isw->size = 0;
+    } else if (rlen == 0) {
+        _DN("shutdown", isw);
+        goto udp_server_cb_error;
+    } else if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
+        _EN("recv() returned error", isw);
+        goto udp_server_cb_error;
+    }
 
     return;
 
