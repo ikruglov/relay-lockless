@@ -45,10 +45,6 @@ list_item_t* list_enqueue(list_t* list, list_item_t* item) {
     return item;
 }
 
-list_item_t* list_enqueue_new(list_t* list, uint32_t size) {
-    return list_enqueue(list, list_new(size));
-}
-
 int list_dequeue(list_t* list) {
     assert(list);
 

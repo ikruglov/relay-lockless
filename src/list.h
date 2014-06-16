@@ -37,7 +37,6 @@ void list_free(list_t* list);
 // these are thread safe (but only in terms of memory synchronization)
 list_item_t* list_new(uint32_t size);
 list_item_t* list_enqueue(list_t* list, list_item_t* item);
-list_item_t* list_enqueue_new(list_t* list, uint32_t size);
 
 int list_dequeue(list_t* list);
 size_t list_distance(list_item_t* litem, list_item_t* ritem);
