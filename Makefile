@@ -20,7 +20,7 @@ test: test_queue
 	$(CC) test/becho.c -o bin/becho
 
 test_queue: mkdir
-	$(CC) $(CFLAGS) $(INCLUDE) src/list.c test/test_queue.c -o bin/test_queue
+	$(CC) $(CFLAGS) $(INCLUDE) src/list.c test/test_queue_threads.c -o bin/test_queue
 
 tclient: mkdir
 	$(CC) $(CFLAGS) $(INCLUDE) test/tclient.c src/net.c -o bin/tclient

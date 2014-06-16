@@ -5,9 +5,9 @@ int main(int argc, char** argv) {
     list_t* list = list_init();
     assert(list->size == 0);
 
-    list_enqueue_new(list, 8);
-    list_enqueue_new(list, 8);
-    list_enqueue_new(list, 8);
+    list_enqueue(list, list_new(8));
+    list_enqueue(list, list_new(8));
+    list_enqueue(list, list_new(8));
     assert(list->size == 3);
 
     assert(list->head->id == 0);
@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
     list_dequeue(list);
     assert(list->size == 0);
 
-    list_enqueue_new(list, 8);
+    list_enqueue(list, list_new(8));
     assert(list->size == 1);
     assert(list->tail->id == 4);
 }
