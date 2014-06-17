@@ -91,11 +91,6 @@ void udp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
         //_DN("UDP packet received: %d", isw, isw->size);
         isw->size = rlen; // to have correct sizeof(isw->size)
 
-        if (isw->size > MAX_MESSAGE_SIZE) {
-            _DN("UDP message size %d is bigger then %d", isw, isw->size, MAX_MESSAGE_SIZE);
-            goto udp_server_cb_error;
-        }
-
         // enqueue new item in list
         // TODO fix data race with item->data, tsan is silient about it!
         list_item_t* item = list_new(isw->size + sizeof(isw->size));
