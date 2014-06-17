@@ -58,7 +58,7 @@ void cleanup_list_cb(struct ev_loop* loop, ev_timer* w, int revents) {
         ++deleted;
     } while (list_dequeue(list));
 
-    //_D("cleanup_list_cb(): %zu deleted, list size: %zu", deleted, list_size(list));
+    //_D("cleanup_list_cb(): %zu deleted, list size: %zu", deleted, LIST_SIZE(list));
 }
 
 #ifdef DOSTATS
