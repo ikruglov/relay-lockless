@@ -4,6 +4,8 @@
 #define _DN(fmt, obj, arg...) _D(fmt " [%s]", ##arg, obj->sock->to_string)
 #define _EN(fmt, obj, arg...) _D(fmt " [%s]: %s", ##arg, obj->sock->to_string, errno ? strerror(errno) : "undefined error")
 
+inline static void stop_loop_cb(struct ev_loop* loop, ev_async* w, int revents);
+
 server_ctx_t* init_server_context(client_ctx_t* client_ctx) {
     assert(client_ctx);
     server_ctx_t* ctx = calloc_or_die(1, sizeof(server_ctx_t));
@@ -13,6 +15,9 @@ server_ctx_t* init_server_context(client_ctx_t* client_ctx) {
     ctx->list = list_init();
 
     client_ctx->list = ctx->list;
+
+    ev_async_init(&ctx->stop_loop, stop_loop_cb);
+    ev_async_start(ctx->loop, &ctx->stop_loop);
 
     ev_set_userdata(ctx->loop, ctx);
     return ctx;
@@ -208,4 +213,9 @@ void tcp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
 
 tcp_server_cb_error:
     free_server_watcher(ctx, isw);
+}
+
+void stop_loop_cb(struct ev_loop* loop, ev_async* w, int revents) {
+    _D("Async signal received in server context. Break evloop");
+    ev_break (loop, EVBREAK_ALL);
 }

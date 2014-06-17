@@ -11,6 +11,11 @@ bg_ctx_t* init_bg_context(server_ctx_t* server_ctx, client_ctx_t* client_ctx) {
     ctx->server_ctx = server_ctx;
     ctx->client_ctx = client_ctx;
 
+    ev_signal_init(&ctx->sigint_handler, signal_handler_cb, SIGINT);
+    ev_signal_init(&ctx->sigterm_handler, signal_handler_cb, SIGTERM);
+    ev_signal_start(ctx->loop, &ctx->sigint_handler);
+    ev_signal_start(ctx->loop, &ctx->sigterm_handler);
+
     ev_timer_init(&ctx->cleanup_list, cleanup_list_cb, 0, 1);
     ev_timer_start(ctx->loop, &ctx->cleanup_list);
 
@@ -132,4 +137,9 @@ void stats_monitor_cb(struct ev_loop* loop, ev_timer* w, int revents) {
     last_servers_processed = total_servers_processed;
     last_clients_processed = total_clients_processed;
 #endif
+}
+
+void signal_handler_cb(struct ev_loop* loop, ev_signal* w, int revents) {
+    _D("Signal caught in background context. Break evloop");
+    ev_break(loop, EVBREAK_ALL);
 }

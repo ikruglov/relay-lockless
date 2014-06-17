@@ -31,6 +31,7 @@ typedef struct _io_client_watcher io_client_watcher_t;
 struct _client_context {
     list_t* list;            // ptr to list_t in server_ctx
     struct ev_loop* loop;    // libev loop
+    ev_async stop_loop;      // signal to interrupt loop
     ev_async wakeup_clients; // priority 1
     ev_timer reconnect_clients;
     size_t active_clients, total_clients;

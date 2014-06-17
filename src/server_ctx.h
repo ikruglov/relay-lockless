@@ -25,8 +25,9 @@ struct _io_server_watcher {
 typedef struct _io_server_watcher io_server_watcher_t;
 
 struct _server_context {
-    list_t* list;                                        // _server_context owns list
+    list_t* list;  // _server_context owns list
     struct ev_loop* loop;
+    ev_async stop_loop; // signal to interrupt loop
     client_ctx_t* client_ctx;
     io_server_watcher_t* servers[MAX_SERVER_CONNECTIONS]; // priority 2
 };

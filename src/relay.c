@@ -9,7 +9,6 @@
 #include "server_ctx.h"
 #include "background_ctx.h"
 
-static void sig_handler(int signum);
 static void* start_event_loop(void* arg);
 static pthread_t start_thread(void *(*start_routine) (void*), void* arg, int detached);
 
@@ -18,10 +17,6 @@ int main(int argc, char** argv) {
         printf("Usage: ./bin/relay udp@localhost:10000 tcp@localhost:10001 ...\n");
         return EXIT_FAILURE;
     }
-
-    // setup signal hendlers
-    signal(SIGPIPE, sig_handler);
-    signal(SIGCHLD, sig_handler);
 
     // init contexts
     client_ctx_t* client_ctx = init_client_context();
@@ -50,11 +45,26 @@ int main(int argc, char** argv) {
         try_connect(tcp_client);
     }
 
-    start_thread(start_event_loop, bg_ctx->loop, 1);
-    start_thread(start_event_loop, client_ctx->loop, 1);
+    sigset_t sigs_to_block;
+    sigfillset(&sigs_to_block);
+    pthread_sigmask(SIG_BLOCK, &sigs_to_block, NULL);
 
-    pthread_t server_tid = start_thread(start_event_loop, server_ctx->loop, 0);
-    pthread_join(server_tid, NULL);
+    pthread_t ctid = start_thread(start_event_loop, client_ctx->loop, 0);
+    pthread_t stid = start_thread(start_event_loop, server_ctx->loop, 0);
+
+    sigset_t sigs_to_unblock;
+    sigemptyset(&sigs_to_unblock);
+    sigaddset(&sigs_to_unblock, SIGINT);
+    sigaddset(&sigs_to_unblock, SIGTERM);
+    pthread_sigmask(SIG_UNBLOCK, &sigs_to_unblock, NULL);
+
+    ev_run(bg_ctx->loop, 0);
+
+    ev_async_send(server_ctx->loop, &server_ctx->stop_loop);
+    pthread_join(stid, NULL);
+
+    ev_async_send(client_ctx->loop, &client_ctx->stop_loop);
+    pthread_join(ctid, NULL);
 
     free_bg_context(bg_ctx);
     free_client_context(client_ctx);
@@ -63,7 +73,7 @@ int main(int argc, char** argv) {
 }
 
 void* start_event_loop(void* arg) {
-    ev_run((struct ev_loop*) arg, 0);
+    ev_run((struct ev_loop*) arg, EVFLAG_NOSIGMASK);
     return NULL;
 }
 
@@ -81,8 +91,4 @@ pthread_t start_thread(void *(*start_routine) (void*), void* arg, int detached) 
     }
 
     return tid;
-}
-
-void sig_handler(int signum) {
-    _D("IGNORE: unexpected signal %d", signum);
 }
