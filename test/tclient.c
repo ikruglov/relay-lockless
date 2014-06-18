@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 
@@ -12,6 +13,10 @@ char* data = NULL;
 uint32_t data_size = 0;
 size_t counter = 0;
 size_t total = 0;
+
+static uint64_t _elapsed_usec(struct timeval* start, struct timeval* end) {
+    return ((end->tv_sec - start->tv_sec) * 1000000) + end->tv_usec - start->tv_usec;
+}
 
 static void* worker(void* arg) {
     printf("worker started\n");
@@ -31,7 +36,9 @@ static void* worker(void* arg) {
 
     while (1) {
         if (offset >= size) {
-            ATOMIC_INCREMENT(counter);
+            if (ATOMIC_INCREASE(counter, 1) >= total)
+                break;
+
             offset = 0;
         }
 
@@ -39,15 +46,12 @@ static void* worker(void* arg) {
                      ?  send(fd, data + offset, size - offset, 0)
                      :  sendto(fd, data + offset, size - offset, 0, (struct sockaddr*) &sock->in, sizeof(sock->in));
 
-        if (wlen > 0) {
-            offset += wlen;
-        } else {
+        if (wlen <= 0) {
             printf("Failed to sent data %zu %s\n", wlen, strerror(errno));
             break;
         }
 
-        if (ATOMIC_READ(counter) >= ATOMIC_READ(total))
-            break;
+        offset += wlen;
     }
 
     printf("worker exited\n");
@@ -63,7 +67,7 @@ int main(int argc, char** argv) {
     socket_t* sock = socketize(argv[1]);
 
     size_t threads = argc > 2 ? atoi(argv[2]) : 1;
-    total          = argc > 3 ? atoi(argv[3]) : (size_t) -1;
+    total   = argc > 3 ? atoi(argv[3]) : (size_t) -1;
     data_size      = argc > 4 ? atoi(argv[4]) : 32 * 1024;
 
     data = malloc(data_size + sizeof(data_size));
@@ -82,18 +86,33 @@ int main(int argc, char** argv) {
     }
 
     size_t last_counter = 0;
+    struct timeval start;
+    gettimeofday(&start, NULL);
+    time_t last_reported = time(0);
+
     while (1) {
+        time_t now = time(0);
         size_t current_counter = ATOMIC_READ(counter);
-        size_t diff = current_counter - last_counter;
-        last_counter = current_counter;
 
-        printf("%d rate %zu pps, total sent: %zu\n", (int) time(0), diff, current_counter);
+        if (last_reported != now) {
+            printf("%d rate %zu pps, total sent: %zu\n",
+                   (int) now, current_counter - last_counter, current_counter);
 
-        if (current_counter >= ATOMIC_READ(total))
-            break;
+            last_counter = current_counter;
+            last_reported = now;
+        }
 
-        sleep(1);
+        if (current_counter >= total) break;
+        usleep(100);
     }
+
+    struct timeval end;
+    gettimeofday(&end, NULL);
+    uint64_t elapsed = _elapsed_usec(&start, &end);
+
+    printf("\n=============================\n");
+    printf("sent %zu packets of size %zu within %.2f seconds\n",
+           ATOMIC_READ(counter), (size_t) data_size, ((double) elapsed / 1000000.));
 
     return EXIT_SUCCESS;
 }
