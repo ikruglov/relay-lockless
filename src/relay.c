@@ -9,6 +9,11 @@
 #include "server_ctx.h"
 #include "background_ctx.h"
 
+bg_ctx_t* bg_ctx = NULL;
+client_ctx_t* client_ctx = NULL;
+server_ctx_t* server_ctx = NULL;
+
+static void sig_handler(int signum);
 static void* start_event_loop(void* arg);
 static pthread_t start_thread(void *(*start_routine) (void*), void* arg, int detached);
 
@@ -19,9 +24,13 @@ int main(int argc, char** argv) {
     }
 
     // init contexts
-    client_ctx_t* client_ctx = init_client_context();
-    server_ctx_t* server_ctx = init_server_context(client_ctx);
-    bg_ctx_t* bg_ctx = init_bg_context(server_ctx, client_ctx);
+    client_ctx = init_client_context();
+    server_ctx = init_server_context(client_ctx);
+    bg_ctx = init_bg_context(server_ctx, client_ctx);
+
+    signal(SIGINT,  sig_handler);
+    signal(SIGTERM, sig_handler);
+    signal(SIGPIPE, sig_handler);
 
     // init server
     socket_t* listened_sock = socketize(argv[1]);
@@ -45,34 +54,34 @@ int main(int argc, char** argv) {
         try_connect(tcp_client);
     }
 
-    sigset_t sigs_to_block;
-    sigfillset(&sigs_to_block);
-    pthread_sigmask(SIG_BLOCK, &sigs_to_block, NULL);
-
+    pthread_t btid = start_thread(start_event_loop, bg_ctx->loop, 0);
     pthread_t ctid = start_thread(start_event_loop, client_ctx->loop, 0);
     pthread_t stid = start_thread(start_event_loop, server_ctx->loop, 0);
 
-    sigset_t sigs_to_unblock;
-    sigemptyset(&sigs_to_unblock);
-    sigaddset(&sigs_to_unblock, SIGINT);
-    sigaddset(&sigs_to_unblock, SIGTERM);
-    pthread_sigmask(SIG_UNBLOCK, &sigs_to_unblock, NULL);
-
-    ev_run(bg_ctx->loop, 0);
-
-    ev_async_send(server_ctx->loop, &server_ctx->stop_loop);
+    // enter main waiting loop
     pthread_join(stid, NULL);
 
+    // stop clients
     ev_async_send(client_ctx->loop, &client_ctx->stop_loop);
     pthread_join(ctid, NULL);
+
+    // stop background tasks
+    ev_async_send(bg_ctx->loop, &bg_ctx->stop_loop);
+    pthread_join(btid, NULL);
 
     free_bg_context(bg_ctx);
     free_client_context(client_ctx);
     free_server_context(server_ctx);
+
     return EXIT_SUCCESS;
 }
 
 void* start_event_loop(void* arg) {
+    // blocking all signals in threads is a good practise
+    sigset_t sigs_to_block;
+    sigfillset(&sigs_to_block);
+    pthread_sigmask(SIG_BLOCK, &sigs_to_block, NULL);
+
     ev_run((struct ev_loop*) arg, EVFLAG_NOSIGMASK);
     return NULL;
 }
@@ -91,4 +100,16 @@ pthread_t start_thread(void *(*start_routine) (void*), void* arg, int detached) 
     }
 
     return tid;
+}
+
+void sig_handler(int signum) {
+    switch(signum) {
+        case SIGTERM:
+        case SIGINT:
+            // ev_async_send is a safe function
+            ev_async_send(server_ctx->loop, &server_ctx->stop_loop);
+            break;
+        default:
+            _D("IGNORE: unexpected signal %d", signum);
+    }
 }

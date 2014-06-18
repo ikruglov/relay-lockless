@@ -2,19 +2,19 @@
 #include "common.h"
 #include "background_ctx.h"
 
+inline static void stop_loop_cb(struct ev_loop* loop, ev_async* w, int revents);
+
 bg_ctx_t* init_bg_context(server_ctx_t* server_ctx, client_ctx_t* client_ctx) {
     assert(server_ctx);
 
     bg_ctx_t* ctx = calloc_or_die(1, sizeof(bg_ctx_t));
 
-    ctx->loop = ev_default_loop(0);
+    ctx->loop = ev_loop_new(EVFLAG_NOSIGMASK);
     ctx->server_ctx = server_ctx;
     ctx->client_ctx = client_ctx;
 
-    ev_signal_init(&ctx->sigint_handler, signal_handler_cb, SIGINT);
-    ev_signal_init(&ctx->sigterm_handler, signal_handler_cb, SIGTERM);
-    ev_signal_start(ctx->loop, &ctx->sigint_handler);
-    ev_signal_start(ctx->loop, &ctx->sigterm_handler);
+    ev_async_init(&ctx->stop_loop, stop_loop_cb);
+    ev_async_start(ctx->loop, &ctx->stop_loop);
 
     ev_timer_init(&ctx->cleanup_list, cleanup_list_cb, 0, 1);
     ev_timer_start(ctx->loop, &ctx->cleanup_list);
@@ -139,7 +139,7 @@ void stats_monitor_cb(struct ev_loop* loop, ev_timer* w, int revents) {
 #endif
 }
 
-void signal_handler_cb(struct ev_loop* loop, ev_signal* w, int revents) {
-    _D("Signal caught in background context. Break evloop");
-    ev_break(loop, EVBREAK_ALL);
+void stop_loop_cb(struct ev_loop* loop, ev_async* w, int revents) {
+    _D("Async signal received in background context. Break evloop");
+    ev_break (loop, EVBREAK_ALL);
 }

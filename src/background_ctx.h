@@ -10,8 +10,7 @@ struct _bg_context {
     struct ev_loop* loop;
     server_ctx_t* server_ctx;
     client_ctx_t* client_ctx;
-    ev_signal sigint_handler;
-    ev_signal sigterm_handler;
+    ev_async stop_loop;
     ev_timer cleanup_list;
 #ifdef DOSTATS
     ev_timer stats_monitor;

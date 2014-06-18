@@ -8,7 +8,7 @@ inline static void stop_loop_cb(struct ev_loop* loop, ev_async* w, int revents);
 
 client_ctx_t* init_client_context() {
     client_ctx_t* ctx = calloc_or_die(1, sizeof(client_ctx_t));
-    ctx->loop = ev_loop_new(0);
+    ctx->loop = ev_loop_new(EVFLAG_NOSIGMASK);
     ctx->active_clients = 0;
     ctx->total_clients = 0;
 

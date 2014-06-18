@@ -10,7 +10,7 @@ server_ctx_t* init_server_context(client_ctx_t* client_ctx) {
     assert(client_ctx);
     server_ctx_t* ctx = calloc_or_die(1, sizeof(server_ctx_t));
 
-    ctx->loop = ev_loop_new(0);
+    ctx->loop = ev_loop_new(EVFLAG_NOSIGMASK);
     ctx->client_ctx = client_ctx;
     ctx->list = list_init();
 
