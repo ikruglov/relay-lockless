@@ -10,8 +10,8 @@ static void free_client_watcher(client_ctx_t* ctx, io_client_watcher_t* watcher)
 client_ctx_t* init_client_context() {
     client_ctx_t* ctx = calloc_or_die(1, sizeof(client_ctx_t));
     ctx->loop = ev_loop_new(EVFLAG_NOSIGMASK);
-    //ctx->active_clients = 0;
-    //ctx->total_clients = 0;
+    ctx->active_clients = 0;
+    ctx->total_clients = 0;
 #ifdef DOSTATS
     ctx->processed = 0;
     ctx->bytes = 0;
@@ -59,7 +59,7 @@ io_client_watcher_t* init_io_client_watcher(client_ctx_t* ctx, io_watcher_cb cb,
             icw->id = i; // potential data race with free_client_watcher()
 
             SET_CONTEXT_CLIENT(ctx, i, icw);
-            //ctx->total_clients++;
+            ctx->total_clients++;
             break;
         }
     }
@@ -79,7 +79,7 @@ io_client_watcher_t* init_io_client_watcher(client_ctx_t* ctx, io_watcher_cb cb,
     ev_io_init(&icw->io, cb, sock->socket, EV_WRITE);
     ev_set_priority(&icw->io, 0);
     ev_io_start(loop, &icw->io);
-    //ctx->active_clients++;
+    ctx->active_clients++;
 
     return icw;
 }
@@ -87,13 +87,13 @@ io_client_watcher_t* init_io_client_watcher(client_ctx_t* ctx, io_watcher_cb cb,
 void free_client_watcher(client_ctx_t* ctx, io_client_watcher_t* watcher) {
     if (!watcher) return;
 
-    //ctx->active_clients--;
+    ctx->active_clients--;
     struct ev_loop* loop = ctx->loop;
     ev_io_stop(loop, &watcher->io);
     close(watcher->sock->socket);
 
     // potential data race with init_io_client_watcher
-    //ctx->total_clients--;
+    ctx->total_clients--;
     SET_CONTEXT_CLIENT(ctx, watcher->id, NULL);
 
     free(watcher->sock);
@@ -110,6 +110,7 @@ void disk_dumper_cb(struct ev_loop* loop, ev_io* w, int revents) {
     if (!next) {
         ev_io_stop(loop, w);
         ev_async_start(loop, &ctx->wakeup_clients);
+        ctx->active_clients--;
         return;
     }
 
@@ -150,6 +151,7 @@ void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents) {
             if (icw->connected < -DUMP_TO_DISK_AFTER_RECONNECTS) {
                 _DN("enable disk dumper", icw);
                 //ev_io_start(loop, &ctx->disk_io);
+                //ctx->active_clients++;
             }
 
             goto tcp_client_schedule_reconnect;
@@ -161,6 +163,7 @@ void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents) {
 
         // disable disk dumper
         //ev_io_stop(loop, &ctx->disk_io);
+        //ctx->active_clients--;
     }
 
     list_item_t* item = GET_LIST_ITEM(icw);
@@ -171,9 +174,8 @@ void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents) {
         if (!next) {
             // nothing to pick up from queue, temporary stop watcher
             // and start ev_async wakeup_clients watcher
-            //ctx->active_clients--;
             ev_io_stop(loop, w);
-
+            ctx->active_clients--;
             ev_async_start(loop, &ctx->wakeup_clients);
             return;
         }
@@ -205,7 +207,7 @@ void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents) {
     return;
 
 tcp_client_schedule_reconnect:
-    //ctx->active_clients--;
+    ctx->active_clients--;
     ev_io_stop(loop, w);
     close(w->fd);
 
@@ -220,19 +222,21 @@ tcp_client_schedule_reconnect:
 // could be aggregated in single one leading to less of work to do
 void wakeup_clients_cb(struct ev_loop* loop, ev_async* w, int revents) {
     client_ctx_t* ctx = (client_ctx_t*) ev_userdata(loop);
-    //if (ctx->active_clients >= ctx->total_clients) return; //FIXME ev_async_stop
 
-    for (int i = 0; i < MAX_CLIENT_CONNECTIONS; ++i) {
-        io_client_watcher_t* icw = GET_CONTEXT_CLIENT(ctx, i);
+    if (ctx->active_clients < ctx->total_clients) {
+        for (int i = 0; i < MAX_CLIENT_CONNECTIONS; ++i) {
+            io_client_watcher_t* icw = GET_CONTEXT_CLIENT(ctx, i);
+            if (!icw) continue;
 
-        if (icw && icw->connected > 0) {
-            ev_io_start(loop, &icw->io);
-        } else if (icw && icw->connected < -DUMP_TO_DISK_AFTER_RECONNECTS) {
-            _DN("enable disk dumper", icw);
-            //ev_io_start(loop, &ctx->disk_io);
+            if (icw->connected > 0 && !ev_is_active(&icw->io)) {
+                ev_io_start(loop, &icw->io);
+                ctx->active_clients++;
+            } else if (icw->connected < -DUMP_TO_DISK_AFTER_RECONNECTS && !ev_is_active(&icw->disk_io)) {
+                _DN("enable disk dumper", icw);
+                //ev_io_start(loop, &ctx->disk_io);
+                //ctx->active_clients++;
+            }
         }
-
-        //ctx->active_clients++;
     }
 
     // all clients started
@@ -253,6 +257,7 @@ void reconnect_clients_cb(struct ev_loop* loop, ev_timer* w, int revents) {
 
             ev_io_set(&icw->io, icw->sock->socket, EV_WRITE);
             ev_io_start(loop, &icw->io);
+            ctx->active_clients++;
         }
     }
 

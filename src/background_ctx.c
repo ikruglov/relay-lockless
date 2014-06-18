@@ -98,12 +98,15 @@ void stats_monitor_cb(struct ev_loop* loop, ev_timer* w, int revents) {
     uint64_t total_servers_processed = ATOMIC_READ(server_ctx->processed);
     uint64_t total_clients_bytes     = ATOMIC_READ(client_ctx->bytes);
     uint64_t total_clients_processed = ATOMIC_READ(client_ctx->processed);
-    size_t active_clients            = ATOMIC_READ(client_ctx->active_clients);
 
     size_t queue_lag = 0;
+    size_t active_clients = 0;
     for (int i = 0; i < MAX_CLIENT_CONNECTIONS; ++i) {
         io_client_watcher_t* icw = GET_CONTEXT_CLIENT(client_ctx, i);
-        if (icw) queue_lag += list_distance(LIST_TAIL(client_ctx->list), GET_LIST_ITEM(icw));
+        if (icw) {
+            active_clients++;
+            queue_lag += list_distance(LIST_TAIL(client_ctx->list), GET_LIST_ITEM(icw));
+        }
     }
 
     struct timeval current;
@@ -115,7 +118,7 @@ void stats_monitor_cb(struct ev_loop* loop, ev_timer* w, int revents) {
             (total_servers_bytes     - last_servers_bytes)     / (double) ((double) elapsed / 1000000.) / 1024 / 1024,
             (total_clients_processed - last_clients_processed) / (double) ((double) elapsed / 1000000.),
             (total_clients_bytes     - last_clients_bytes)     / (double) ((double) elapsed / 1000000.) / 1024 / 1024,
-            (double) ((double) queue_lag) / active_clients,
+            (double) ((double) queue_lag) / (active_clients | 1),
             LIST_SIZE(server_ctx->list));
 
     memcpy(&last, &current, sizeof(current));
