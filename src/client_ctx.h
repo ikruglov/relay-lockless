@@ -6,6 +6,7 @@
 #include "list.h"
 
 #define MAX_CLIENT_CONNECTIONS 1024
+#define DUMP_TO_DISK_AFTER_RECONNECTS 5
 
 #define SET_LIST_ITEM(__w, __i)           ATOMIC_WRITE((__w)->item, (__i))
 #define GET_LIST_ITEM(__w)                ATOMIC_READ ((__w)->item)
@@ -14,6 +15,7 @@
 
 struct _io_client_watcher {
     ev_io io;
+    ev_io disk_io;
     size_t id;         // id inside _context->clients
     uint32_t size;     // size of item->data, 4GB at most
     uint32_t offset;   // offset inside item->data, 4GB at most
@@ -27,9 +29,9 @@ typedef struct _io_client_watcher io_client_watcher_t;
 struct _client_context {
     list_t* list;            // ptr to list_t in server_ctx
     struct ev_loop* loop;    // libev loop
-    ev_async stop_loop;      // signal to interrupt loop
+    ev_async stop_loop;      // signal to interrupt loop TODO priority -2
     ev_async wakeup_clients; // priority 1
-    ev_timer reconnect_clients;
+    ev_timer reconnect_clients; //priority 1
     size_t active_clients, total_clients;
 #ifdef DOSTATS
     uint64_t bytes, processed;
