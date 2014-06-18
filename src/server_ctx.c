@@ -13,6 +13,10 @@ server_ctx_t* init_server_context(client_ctx_t* client_ctx) {
     ctx->loop = ev_loop_new(EVFLAG_NOSIGMASK);
     ctx->client_ctx = client_ctx;
     ctx->list = list_init();
+#ifdef DOSTATS
+    ctx->processed = 0;
+    ctx->bytes = 0;
+#endif
 
     client_ctx->list = ctx->list;
 
@@ -59,14 +63,13 @@ io_server_watcher_t* init_io_server_watcher(server_ctx_t* ctx, io_watcher_cb cb,
         return NULL;
     }
 
-    ev_io_init(&isw->io, cb, sock->socket, EV_READ);
     isw->item = NULL;
     isw->sock = sock;
     isw->offset = 0;
     isw->size = 0;
 
-    // server events should be handled first
-    ev_set_priority(&isw->io, 2);
+    ev_io_init(&isw->io, cb, sock->socket, EV_READ);
+    ev_set_priority(&isw->io, 2); // server events should be handled first
     ev_io_start(loop, &isw->io);
     return isw;
 }
@@ -107,8 +110,8 @@ void udp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
         ev_async_send(ctx->client_ctx->loop, &ctx->client_ctx->wakeup_clients);
 
 #if DOSTATS
-        ATOMIC_INCREMENT(isw->processed);
-        ATOMIC_INCREASE(isw->bytes, isw->size);
+        ATOMIC_INCREMENT(ctx->processed);
+        ATOMIC_INCREASE(ctx->bytes, isw->size);
 #endif
 
         isw->offset = 0;
@@ -193,8 +196,8 @@ void tcp_server_cb(struct ev_loop* loop, ev_io* w, int revents) {
             ev_async_send(ctx->client_ctx->loop, &ctx->client_ctx->wakeup_clients);
 
 #if DOSTATS
-            ATOMIC_INCREMENT(isw->processed);
-            ATOMIC_INCREASE(isw->bytes, isw->size);
+            ATOMIC_INCREMENT(ctx->processed);
+            ATOMIC_INCREASE(ctx->bytes, isw->size);
 #endif
 
             isw->item = NULL; // FIXME data race

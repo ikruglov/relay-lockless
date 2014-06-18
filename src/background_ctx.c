@@ -94,45 +94,27 @@ void stats_monitor_cb(struct ev_loop* loop, ev_timer* w, int revents) {
     server_ctx_t* server_ctx = ctx->server_ctx;
     client_ctx_t* client_ctx = ctx->client_ctx;
 
-    uint64_t total_servers_bytes = 0;
-    uint64_t total_servers_processed = 0;
-    for (int i = 0; i < MAX_SERVER_CONNECTIONS; ++i) {
-        io_server_watcher_t* isw = ATOMIC_READ(server_ctx->servers[i]);
-        if (!isw) continue;
-
-        total_servers_bytes     += ATOMIC_READ(isw->bytes);
-        total_servers_processed += ATOMIC_READ(isw->processed);
-    }
+    uint64_t total_servers_bytes     = ATOMIC_READ(server_ctx->bytes);
+    uint64_t total_servers_processed = ATOMIC_READ(server_ctx->processed);
+    uint64_t total_clients_bytes     = ATOMIC_READ(client_ctx->bytes);
+    uint64_t total_clients_processed = ATOMIC_READ(client_ctx->processed);
+    size_t active_clients            = ATOMIC_READ(client_ctx->active_clients);
 
     size_t queue_lag = 0;
-    size_t active_clients = 0;
-    uint64_t total_clients_bytes = 0;
-    uint64_t total_clients_processed = 0;
     for (int i = 0; i < MAX_CLIENT_CONNECTIONS; ++i) {
         io_client_watcher_t* icw = GET_CONTEXT_CLIENT(client_ctx, i);
-        if (!icw) continue;
-
-        total_clients_bytes     += ATOMIC_READ(icw->bytes);
-        total_clients_processed += ATOMIC_READ(icw->processed);
-
-        active_clients++;
-        queue_lag += list_distance(LIST_TAIL(server_ctx->list), GET_LIST_ITEM(icw));
+        if (icw) queue_lag += list_distance(LIST_TAIL(client_ctx->list), GET_LIST_ITEM(icw));
     }
 
     struct timeval current;
     gettimeofday(&current, NULL);
-
     uint64_t elapsed = _elapsed_usec(&last, &current);
-    uint64_t servers_bytes     = total_servers_bytes     - last_servers_bytes;
-    uint64_t clients_bytes     = total_clients_bytes     - last_clients_bytes;
-    uint64_t servers_processed = total_servers_processed - last_servers_processed;
-    uint64_t clients_processed = total_clients_processed - last_clients_processed;
 
     printf("STATS: recv %10.2f msg/s %10.2f MB/s    sent %10.2f msg/s %10.2f MB/s    qlag %10.2f    qsize %zu\n",
-            servers_processed / (double) ((double) elapsed / 1000000.),
-            servers_bytes     / (double) ((double) elapsed / 1000000.) / 1024 / 1024,
-            clients_processed / (double) ((double) elapsed / 1000000.),
-            clients_bytes     / (double) ((double) elapsed / 1000000.) / 1024 / 1024,
+            (total_servers_processed - last_servers_processed) / (double) ((double) elapsed / 1000000.),
+            (total_servers_bytes     - last_servers_bytes)     / (double) ((double) elapsed / 1000000.) / 1024 / 1024,
+            (total_clients_processed - last_clients_processed) / (double) ((double) elapsed / 1000000.),
+            (total_clients_bytes     - last_clients_bytes)     / (double) ((double) elapsed / 1000000.) / 1024 / 1024,
             (double) ((double) queue_lag) / active_clients,
             LIST_SIZE(server_ctx->list));
 

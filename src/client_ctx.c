@@ -11,6 +11,10 @@ client_ctx_t* init_client_context() {
     ctx->loop = ev_loop_new(EVFLAG_NOSIGMASK);
     ctx->active_clients = 0;
     ctx->total_clients = 0;
+#ifdef DOSTATS
+    ctx->processed = 0;
+    ctx->bytes = 0;
+#endif
 
     ev_async_init(&ctx->wakeup_clients, wakeup_clients_cb);
     ev_set_priority(&ctx->wakeup_clients, 1);
@@ -122,11 +126,6 @@ void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents) {
 
         // data of current item has been sent, advance to next one
         if (icw->offset >= icw->size) {
-#ifdef DOSTATS
-            ATOMIC_INCREMENT(icw->processed);
-            ATOMIC_INCREASE(icw->bytes, icw->size);
-#endif
-
             list_item_t* next = LIST_ITEM_NEXT(item);
             if (!next) {
                 // nothing to pick up from queue, temporary stop watcher
@@ -145,6 +144,11 @@ void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents) {
 
             // ignore empty items
             if (icw->size == 0) return;
+
+#ifdef DOSTATS
+            ATOMIC_INCREMENT(ctx->processed);
+            ATOMIC_INCREASE(ctx->bytes, icw->size);
+#endif
         }
 
         // TODO potential data race with item->data

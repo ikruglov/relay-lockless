@@ -16,10 +16,6 @@ struct _io_server_watcher {
     uint32_t offset; // 4GB at most
     socket_t* sock;  // watcher owns socket object
     list_item_t* item;
-#ifdef DOSTATS
-    uint64_t bytes;
-    uint64_t processed;
-#endif
 };
 
 typedef struct _io_server_watcher io_server_watcher_t;
@@ -29,6 +25,9 @@ struct _server_context {
     struct ev_loop* loop;
     ev_async stop_loop; // signal to interrupt loop
     client_ctx_t* client_ctx;
+#ifdef DOSTATS
+    uint64_t bytes, processed;
+#endif
     io_server_watcher_t* servers[MAX_SERVER_CONNECTIONS]; // priority 2
 };
 
