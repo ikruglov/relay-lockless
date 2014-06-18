@@ -1,14 +1,15 @@
 #ifndef __LIST_H__
 #define __LIST_H__
 
+#include <time.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <sys/time.h>
 
 struct _list_item {
     struct _list_item* next;
     uint64_t id;   // id within a list
     uint32_t size; // size of payload
+    time_t time;   // epoch when item was enqueued
     char data[];   // payload
 };
 

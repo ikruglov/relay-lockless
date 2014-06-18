@@ -172,11 +172,13 @@ void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents) {
     if (icw->offset >= icw->size) {
         list_item_t* next = LIST_ITEM_NEXT(item);
         if (!next) {
-            // nothing to pick up from queue, temporary stop watcher
-            // and start ev_async wakeup_clients watcher
-            ev_io_stop(loop, w);
-            ctx->active_clients--;
-            ev_async_start(loop, &ctx->wakeup_clients);
+            if (item->time < time(0) - 2) {
+                // nothing to pick up from queue, temporary stop watcher
+                // and start ev_async wakeup_clients watcher
+                ev_io_stop(loop, w);
+                ctx->active_clients--;
+                ev_async_start(loop, &ctx->wakeup_clients);
+            }
             return;
         }
 

@@ -29,6 +29,7 @@ list_item_t* list_new(uint32_t size) {
     ATOMIC_WRITE(item->size, size);
     ATOMIC_WRITE(item->next, NULL);
     ATOMIC_WRITE(item->id, (uint64_t) -1);
+    ATOMIC_WRITE(item->time, 0);
     return item;
 }
 
@@ -38,6 +39,7 @@ list_item_t* list_enqueue(list_t* list, list_item_t* item) {
 
     list_item_t* tail = LIST_TAIL(list);
     ATOMIC_WRITE(item->id, LIST_ITEM_ID(tail) + 1);
+    ATOMIC_WRITE(item->time, time(0));
     ATOMIC_WRITE(tail->next, item);
     ATOMIC_WRITE(list->tail, item);
     ATOMIC_INCREMENT(list->size);
