@@ -99,9 +99,18 @@ struct _list {
     struct _list_item* tail;
 };
 
+# server_ctx.h
+struct _server_context {
+    ...
+    uint64_t bytes, processed;
+    ...
+}
+
 # client_ctx.h
 struct _client_context {
     ...
+    uint64_t bytes, processed;
+    size_t active_clients, total_clients;
     io_client_watcher_t* clients[MAX_CLIENT_CONNECTIONS];
     ...
 };
