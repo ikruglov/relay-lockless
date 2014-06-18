@@ -27,10 +27,10 @@ void free_server_context(server_ctx_t* ctx) {
     if (!ctx) return;
 
     for (size_t i = 0; i < MAX_SERVER_CONNECTIONS; ++i) {
-        if (ctx->servers[i])
-            free(ctx->servers[i]);
+        free_server_watcher(ctx, ctx->servers[i]);
     }
 
+    ev_async_stop(ctx->loop, &ctx->stop_loop);
     ev_loop_destroy(ctx->loop);
     list_free(ctx->list);
     free(ctx);

@@ -31,7 +31,12 @@ bg_ctx_t* init_bg_context(server_ctx_t* server_ctx, client_ctx_t* client_ctx) {
 void free_bg_context(bg_ctx_t* ctx) {
     if (!ctx) return;
 
+    ev_async_stop(ctx->loop, &ctx->stop_loop);
     ev_timer_stop(ctx->loop, &ctx->cleanup_list);
+#ifdef DOSTATS
+    ev_timer_stop(ctx->loop, &ctx->stats_monitor);
+#endif
+
     free(ctx);
 }
 

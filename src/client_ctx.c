@@ -29,9 +29,12 @@ void free_client_context(client_ctx_t* ctx) {
     if (!ctx) return;
 
     for (size_t i = 0; i < MAX_CLIENT_CONNECTIONS; ++i) {
-        io_client_watcher_t* icw = GET_CONTEXT_CLIENT(ctx, i);
-        if (icw) free(icw);
+        free_client_watcher(ctx, ctx->clients[i]);
     }
+
+    ev_async_stop(ctx->loop, &ctx->stop_loop);
+    ev_async_stop(ctx->loop, &ctx->wakeup_clients);
+    ev_timer_stop(ctx->loop, &ctx->reconnect_clients);
 
     ev_loop_destroy(ctx->loop);
     free(ctx);
