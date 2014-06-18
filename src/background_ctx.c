@@ -2,7 +2,7 @@
 #include "common.h"
 #include "background_ctx.h"
 
-inline static void stop_loop_cb(struct ev_loop* loop, ev_async* w, int revents);
+static void stop_loop_cb(struct ev_loop* loop, ev_async* w, int revents);
 
 bg_ctx_t* init_bg_context(server_ctx_t* server_ctx, client_ctx_t* client_ctx) {
     assert(server_ctx);

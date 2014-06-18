@@ -4,7 +4,8 @@
 #define _DN(fmt, obj, arg...) _D(fmt " [%s]", ##arg, obj->sock->to_string)
 #define _EN(fmt, obj, arg...) _D(fmt " [%s]: %s", ##arg, obj->sock->to_string, errno ? strerror(errno) : "undefined error")
 
-inline static void stop_loop_cb(struct ev_loop* loop, ev_async* w, int revents);
+static void stop_loop_cb(struct ev_loop* loop, ev_async* w, int revents);
+static void free_client_watcher(client_ctx_t* ctx, io_client_watcher_t* watcher);
 
 client_ctx_t* init_client_context() {
     client_ctx_t* ctx = calloc_or_die(1, sizeof(client_ctx_t));

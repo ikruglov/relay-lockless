@@ -43,7 +43,6 @@ void free_client_context(client_ctx_t* ctx);
 
 typedef void (io_watcher_cb)(struct ev_loop* loop, ev_io *w, int revents);
 io_client_watcher_t* init_io_client_watcher(client_ctx_t* ctx, io_watcher_cb cb, socket_t* sock);
-void free_client_watcher(client_ctx_t* ctx, io_client_watcher_t* watcher);
 
 void tcp_client_cb(struct ev_loop* loop, ev_io* w, int revents);
 void wakeup_clients_cb(struct ev_loop* loop, ev_async* w, int revents);

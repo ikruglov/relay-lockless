@@ -36,7 +36,6 @@ server_ctx_t* init_server_context(client_ctx_t* client_ctx);
 void free_server_context(server_ctx_t* ctx);
 
 io_server_watcher_t* init_io_server_watcher(server_ctx_t* ctx, io_watcher_cb cb, socket_t* sock);
-void free_server_watcher(server_ctx_t* ctx, io_server_watcher_t* watcher);
 
 void udp_server_cb(struct ev_loop* loop, ev_io* w, int revents);
 void tcp_accept_cb(struct ev_loop* loop, ev_io* w, int revents);
