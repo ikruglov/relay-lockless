@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
         time_t now = time(0);
         if (last_reported != now) {
             size_t current_message = ATOMIC_READ(messages);
-            printf("%d rate %zu pps, total recv: %zu\n",
+            printf("%d rate %zu msg/s, total recv: %zu\n",
                    (int) now, current_message - last_messages, current_message);
 
             last_messages = current_message;

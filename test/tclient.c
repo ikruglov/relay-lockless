@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
         size_t current_counter = ATOMIC_READ(counter);
 
         if (last_reported != now) {
-            printf("%d rate %zu pps, total sent: %zu\n",
+            printf("%d rate %zu msg/s, total sent: %zu\n",
                    (int) now, current_counter - last_counter, current_counter);
 
             last_counter = current_counter;
