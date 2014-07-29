@@ -8,19 +8,25 @@
 #include "net.h"
 #include "common.h"
 
-uint64_t bytes;
-uint64_t packets;
+size_t messages;
 
 static void* tcp_worker(void* arg) {
     socket_t* sock = (socket_t*) arg;
     printf("worker started %s\n", sock->to_string);
 
     char buf[64 * 1024]; 
+
     while (1) {
-        ssize_t rlen = recv(sock->socket, buf, sizeof(buf), MSG_WAITALL);
+        uint32_t len = 0;
+        ssize_t rlen = recv(sock->socket, (char*) &len, sizeof(len), MSG_WAITALL);
+        if (rlen != sizeof(len)) {
+            printf("recv return errror %s: %s\n", sock->to_string, strerror(errno));
+            break;
+        }
+
+        rlen = recv(sock->socket, buf, len, MSG_WAITALL);
         if (rlen > 0) {
-            ATOMIC_INCREMENT(packets);
-            ATOMIC_INCREASE(bytes, rlen);
+            ATOMIC_INCREMENT(messages);
         } else if (rlen == 0) {
             printf("shutdown %s\n", sock->to_string);
             break;
@@ -45,6 +51,8 @@ int main(int argc, char** argv) {
     if (sock->proto != IPPROTO_TCP) ERRX("Support only TCP");
     if (setup_socket(sock, 1)) ERRX("Failed to setup socket");
 
+    size_t last_messages = 0;
+    time_t last_reported = time(0);
     printf("starting tserver %s\n", sock->to_string);
 
     while (1) {
@@ -66,6 +74,15 @@ int main(int argc, char** argv) {
             ERRPX("Failed to accept connection");
         }
 
+        time_t now = time(0);
+        if (last_reported != now) {
+            size_t current_message = ATOMIC_READ(messages);
+            printf("%d rate %zu pps, total recv: %zu\n",
+                   (int) now, current_message - last_messages, current_message);
+
+            last_messages = current_message;
+            last_reported = now;
+        }
         usleep(1000);
     }
 
