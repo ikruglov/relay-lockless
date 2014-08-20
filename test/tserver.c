@@ -58,7 +58,7 @@ static void* udp_worker(void* arg) {
             ATOMIC_INCREMENT(messages);
         } else if (rlen == 0) {
             printf("shutdown %s\n", sock->to_string);
-            //break;
+            break;
         } else {
             printf("recv return errror %s: %s\n", sock->to_string, strerror(errno));
             break;
