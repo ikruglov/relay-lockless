@@ -9,6 +9,7 @@
 #include "net.h"
 #include "common.h"
 
+size_t interval = 0;
 char* data = NULL;
 uint32_t data_size = 0;
 size_t counter = 0;
@@ -52,6 +53,9 @@ static void* worker(void* arg) {
         }
 
         offset += wlen;
+        if (interval > 0) {
+            usleep(interval);
+        }
     }
 
     printf("worker exited\n");
@@ -60,15 +64,16 @@ static void* worker(void* arg) {
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        printf("Usage: tclient udp@localhost:2008 [threads] [cnt] [size]\n");
+        printf("Usage: tclient udp@localhost:2008 [threads] [cnt] [size] [interval]\n");
         return EXIT_FAILURE;
     }
 
     socket_t* sock = socketize(argv[1]);
 
     size_t threads = argc > 2 ? atoi(argv[2]) : 1;
-    total   = argc > 3 ? atoi(argv[3]) : (size_t) -1;
+    total          = argc > 3 ? atoi(argv[3]) : (size_t) -1;
     data_size      = argc > 4 ? atoi(argv[4]) : 32 * 1024;
+    interval       = argc > 5 ? atoi(argv[5]) : 0;
 
     data = malloc(data_size + sizeof(data_size));
     memcpy(data, &data_size, sizeof(data_size));
