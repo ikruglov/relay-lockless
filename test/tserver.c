@@ -4,6 +4,8 @@
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "net.h"
 #include "common.h"
@@ -41,6 +43,33 @@ static void* tcp_worker(void* arg) {
     return NULL;
 }
 
+static void* udp_worker(void* arg) {
+    socket_t* sock = (socket_t*) arg;
+    printf("worker started %s\n", sock->to_string);
+
+    long fl = fcntl(sock->socket, F_GETFL);
+    fcntl(sock->socket, F_SETFL, fl & ~O_NONBLOCK);
+
+    char buf[64 * 1024];
+    while (1) {
+        ssize_t rlen = recv(sock->socket, buf, sizeof(buf), 0);
+
+        if (rlen > 0) {
+            ATOMIC_INCREMENT(messages);
+        } else if (rlen == 0) {
+            printf("shutdown %s\n", sock->to_string);
+            //break;
+        } else {
+            printf("recv return errror %s: %s\n", sock->to_string, strerror(errno));
+            break;
+        }
+    }
+
+    printf("worker exited %s\n", sock->to_string);
+    free(sock);
+    return NULL;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
         printf("Usage: tserver tcp@localhost:2008\n");
@@ -48,30 +77,44 @@ int main(int argc, char** argv) {
     }
 
     socket_t* sock = socketize(argv[1]);
-    if (sock->proto != IPPROTO_TCP) ERRX("Support only TCP");
     if (setup_socket(sock, 1)) ERRX("Failed to setup socket");
 
+    int udp_inited = 0;
     size_t last_messages = 0;
     time_t last_reported = time(0);
     printf("starting tserver %s\n", sock->to_string);
 
     while (1) {
-        struct sockaddr_in addr;
-        socklen_t addrlen = sizeof(addr);
-        int client = accept(sock->socket, (struct sockaddr*) &addr, &addrlen);
+        if (sock->proto == IPPROTO_UDP) {
+            if (udp_inited == 0) {
+                pthread_t tid;
+                pthread_attr_t attr;
+                pthread_attr_init(&attr);
+                pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+                pthread_create(&tid, &attr, udp_worker, sock);
+                pthread_attr_destroy(&attr);
+                udp_inited = 1;
+            }
+        } else if (sock->proto == IPPROTO_TCP) {
+            struct sockaddr_in addr;
+            socklen_t addrlen = sizeof(addr);
+            int client = accept(sock->socket, (struct sockaddr*) &addr, &addrlen);
 
-        if (client >= 0) {
-            socket_t* csock = socketize_sockaddr(&addr);
-            csock->socket = client;
+            if (client >= 0) {
+                socket_t* csock = socketize_sockaddr(&addr);
+                csock->socket = client;
 
-            pthread_t tid;
-            pthread_attr_t attr;
-            pthread_attr_init(&attr);
-            pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-            pthread_create(&tid, &attr, tcp_worker, csock);
-            pthread_attr_destroy(&attr);
-        } else if (errno != EAGAIN) {
-            ERRPX("Failed to accept connection");
+                pthread_t tid;
+                pthread_attr_t attr;
+                pthread_attr_init(&attr);
+                pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+                pthread_create(&tid, &attr, tcp_worker, csock);
+                pthread_attr_destroy(&attr);
+            } else if (errno != EAGAIN) {
+                ERRPX("Failed to accept connection");
+            }
+        } else {
+            ERRX("Unknown proto")
         }
 
         time_t now = time(0);
@@ -83,6 +126,7 @@ int main(int argc, char** argv) {
             last_messages = current_message;
             last_reported = now;
         }
+
         usleep(1000);
     }
 
